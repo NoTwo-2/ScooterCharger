@@ -8,6 +8,11 @@ We are currently using:
 ### If using VS Code and venv:
 `CTRL+SHIFT+P`, `Python: Select Interpreter`, select the python bin/exe in your `.venv` file.
 
+### To test the app
+If using venv, make sure your shell prompt displays `.venv` (see the above link). The path to the bin/exe for flask wont exist in environment variables otherwise.
+
+In this directory, use the command `flask --app flaskr run --debug`.
+
 # API Documentation
 
 Please update with API documentation as routes are added!
