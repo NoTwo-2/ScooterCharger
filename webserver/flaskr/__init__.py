@@ -18,6 +18,10 @@ def create_app() -> Flask:
     except OSError:
         pass
     
+    # Attatch database methods to app
+    from . import sqlite_db
+    sqlite_db.init_app(app)
+    
     # Import blueprints
     # from . import api
     # app.register_blueprint(api.bp)
