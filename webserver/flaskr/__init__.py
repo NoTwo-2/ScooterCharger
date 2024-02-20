@@ -23,6 +23,8 @@ def create_app() -> Flask:
     sqlite_db.init_app(app)
     
     # Import blueprints
+    from . import auth
+    app.register_blueprint(auth.bp)
     # from . import api
     # app.register_blueprint(api.bp)
     
