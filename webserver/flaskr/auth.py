@@ -6,9 +6,17 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from flaskr.sqlite_db import get_db
 
+from enum import Enum
+
 bp = Blueprint('auth', __name__, url_prefix='/auth')
 
+# Key to hold user_id
 USER_ID_COOKIE = "user_id"
+# Enum to determine AccessType
+class AccessType(Enum):
+    STUDENT = 0
+    ADMIN = 1
+    BOX = 2
 
 @bp.route('/register', methods=('GET', 'POST'))
 def register():
@@ -19,14 +27,21 @@ def register():
         case 'POST':
             db = get_db()
             
-            username = request.form['username']
+            access_type = request.form['access_type']
+            email = request.form['email']
             password = request.form['password']
-            if not username or not password:
+            
+            if not access_type or not email or not password:
                 return "Bad Request", 400
+            if not (access_type in [at.name for at in AccessType]):
+                access_type = AccessType(0).name
+            # TODO: Insert some sort of regex for email verification
+            passkey = generate_password_hash(password)
+            print(passkey)
             
             try:
                 db.execute(
-                    f'INSERT INTO user (username, password) VALUES ({username}, {generate_password_hash(password)})'
+                    f"INSERT INTO APPUSER (ACCESS_TYPE, EMAIL, PASSKEY) VALUES ('{access_type}', '{email}', '{passkey}')"
                 )
                 db.commit()
             except db.IntegrityError:
@@ -34,7 +49,7 @@ def register():
             else:
                 return redirect(url_for("auth.login"))
         case 'GET':
-            pass
+            return "OK", 200
         case _:
             return "Bad Request", 400
         
@@ -49,20 +64,21 @@ def login():
         case 'POST':
             db = get_db()
             
-            username = request.form['username']
+            email = request.form['email']
             password = request.form['password']
             
-            user = db.execute(f'SELECT * FROM user WHERE username = {username}')
-            if (user is None) or (not check_password_hash(user['password'], password)):
+            user = db.execute(f"SELECT * FROM APPUSER WHERE EMAIL = '{email}'").fetchone()
+            password_correct = check_password_hash(user['PASSKEY'], password)
+            if (user is None) or (not password_correct):
                 return "Bad Request", 400 # TODO: Maybe render login page with a custom message here
             
             # JWT REPLACEMENT!
             session.clear()
-            session[USER_ID_COOKIE] = user['id']
+            session[USER_ID_COOKIE] = user['ID']
             return "OK", 200 # TODO: User landing page(s)?
             
         case 'GET':
-            pass
+            return "OK", 200
         case _:
             return "Bad Request", 400
     
@@ -80,4 +96,4 @@ def load_user():
     if user_id is None:
         g.user = None
     else:
-        g.user = db.execute(f'SELECT * FROM user WHERE id = {user_id}').fetchone()
+        g.user = db.execute(f"SELECT * FROM APPUSER WHERE ID = '{user_id}'").fetchone()
