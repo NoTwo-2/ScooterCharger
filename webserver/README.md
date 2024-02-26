@@ -17,7 +17,7 @@ We are currently using:
 If using venv, make sure your shell prompt displays `.venv` (see the above link). The path to the bin/exe for flask wont exist in environment variables otherwise.
 
 If you are running this for the first time (or you want to reset the sqlite database), be sure to run `flask --app flaskr init-db` before running the app.
-In this directory, use the command `flask --app flaskr run --debug`.
+In this directory, run the `run.py` python script.
 
 # API Documentation
 
