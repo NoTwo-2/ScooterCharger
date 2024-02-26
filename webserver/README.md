@@ -1,9 +1,14 @@
 # Setup
 
 Learn how to initialize this directory with an environment (venv) [here](https://flask.palletsprojects.com/en/3.0.x/installation/).
+#### Activate venv in shell
+- Linux: `. .venv/bin/activate`
+- Windows: `.venv\Scripts\activate`
 
 We are currently using: 
-- Flask (pip install flask)
+- Flask: `pip install flask`
+- Flask-SocketIO: `pip install flask-socketio`
+
 
 ### If using VS Code and venv:
 `CTRL+SHIFT+P`, `Python: Select Interpreter`, select the python bin/exe in your `.venv` file.
