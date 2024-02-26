@@ -20,8 +20,8 @@ def create_app() -> Flask:
         pass
     
     # Attatch socketio
-    from . import events
-    events.socketio.init_app(app)
+    from .events import socketio
+    socketio.init_app(app)
     
     # Attatch database methods to app
     from . import sqlite_db
@@ -30,6 +30,8 @@ def create_app() -> Flask:
     # Import blueprints
     from . import auth
     app.register_blueprint(auth.bp)
+    from . import pi
+    app.register_blueprint(pi.bp)
     # from . import api
     # app.register_blueprint(api.bp)
     
