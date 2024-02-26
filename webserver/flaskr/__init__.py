@@ -19,6 +19,10 @@ def create_app() -> Flask:
     except OSError:
         pass
     
+    # Attatch socketio
+    from . import events
+    events.socketio.init_app(app)
+    
     # Attatch database methods to app
     from . import sqlite_db
     sqlite_db.init_app(app)
