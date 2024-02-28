@@ -2,7 +2,7 @@
 # Import all blueprints here and add them in the create app function
 
 import os
-from flask import Flask
+from flask import Flask, redirect, render_template, url_for
 
 def create_app() -> Flask:
     # Create instance of Flask object and set some config
@@ -34,5 +34,9 @@ def create_app() -> Flask:
     app.register_blueprint(pi.bp)
     # from . import api
     # app.register_blueprint(api.bp)
+
+    @app.route("/")
+    def route_to_auth():
+        return redirect(url_for("auth.login"))
     
     return app

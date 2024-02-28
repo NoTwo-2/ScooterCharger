@@ -1,0 +1,194 @@
+/* STYLE CONVENTION FOR CSS
+ *
+ *   1. Append the open bracket to the end of the element name.
+ *   2. No one-liners: keep everything consistent.
+ *   3. Indent with two spaces. No tabs allowed.
+ *   4. Organize all of an element's CSS attributes alphabetically.
+*/
+
+
+/* Define the width and height of the html and body elements as these will
+affect the widths and heights of interior elements. */
+html {
+  height: 100vh;
+  width: 100vw;
+}
+
+body {
+  background: white;
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.form-container form label {
+  font-size: 20px;
+}
+
+.form-container form input {
+  font-size: 20px;
+}
+
+.form-container form input[type=text], input[type=password] {
+  background: none;
+  border: none;
+  border-bottom: 2px dashed black;
+  border-radius: 0;
+}
+
+/* =============================================================================
+ * LANDING PAGE STYLING
+ * =============================================================================
+*/
+
+.landing-page-container {
+  align-items: center;
+  background-image: url("images/landing_page_background.png");
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-size: auto 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  height: 100%;
+}
+
+.landing-page-container form {
+  align-items: flex-end;
+  background-position: left center;
+  background-repeat: no-repeat;
+  bottom: 25%;
+  display: flex;
+  margin-right: 3%;
+  position: fixed;
+  justify-content: center;
+}
+
+/* =============================================================================
+ * AUTHENTICATION PAGE STYLING
+ * =============================================================================
+*/
+
+.authentication-page-container {
+  align-items: center;
+  background-image: url("images/authentication_page_background.png");
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-size: auto 100%;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  justify-content: center;
+  width: 100%;
+}
+
+.authentication-page-container .form-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  justify-content: center;
+  width: 80%;
+}
+
+.authentication-page-container .form-container .row-container {
+  display: flex;
+  flex-direction: row;
+  height: 70%;
+}
+
+.authentication-page-container .form-container .vertical-col-container {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.authentication-page-container .form-container form {
+  background-image: url("images/authentication_form_background.png");
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-size: auto 100%;
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  height: 75%;
+  justify-content: center;
+  width: 100%;
+}
+
+.authentication-page-container .form-container form input {
+  margin-bottom: 20px;
+  max-width: 250px;
+}
+
+.authentication-page-container .form-container form input[type=submit] {
+  width: 50%;
+}
+
+/* =============================================================================
+ * LOGIN PAGE STYLING
+ * =============================================================================
+*/
+
+.login-page-container {
+  align-items: center;
+  background-image: url("images/authentication_page_background.png");
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  justify-content: center;
+  width: 100%;
+  padding-top: 80px; 
+}
+
+.login-page-container .form-container {
+  background-image: url("images/login_page_background.png");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: auto 115%;
+  bottom: 2%;
+  top: 5%;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  position: sticky;
+  width: 100%;
+  align-items: center; 
+}
+
+.login-page-container .form-container form.form1{
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  margin: 150px 80px 100px 60px;
+}
+
+.login-page-container .form-container form.form2{
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+
+}
+
+.login-page-container .form-container form h1 {
+  font-size: 30px;
+  margin-bottom: 10px;
+}
+
+.login-page-container .form-container form input {
+  font-size: 20px;
+  margin-bottom: 20px;
+  max-width: 250px;
+}
+
+.login-page-container .form-container form input[type=text], input[type=password] {
+  background: none;
+  border: none;
+  border-bottom: 2px dashed black;
+  border-radius: 0;
+}
+

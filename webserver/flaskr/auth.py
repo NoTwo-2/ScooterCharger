@@ -1,6 +1,6 @@
 # Serve registration and login pages here
 
-from flask import Blueprint, g, request, redirect, url_for, session
+from flask import Blueprint, g, request, redirect, url_for, session, render_template
 
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -27,7 +27,7 @@ def register():
         case 'POST':
             db = get_db()
             
-            access_type = request.form['access_type']
+            access_type = 'STUDENT'
             email = request.form['email']
             password = request.form['password']
             
@@ -49,7 +49,7 @@ def register():
             else:
                 return redirect(url_for("auth.login"))
         case 'GET':
-            return "OK", 200
+            return render_template("auth/register.html")
         case _:
             return "Bad Request", 400
         
@@ -76,9 +76,8 @@ def login():
             session.clear()
             session[USER_ID_COOKIE] = user['ID']
             return "OK", 200 # TODO: User landing page(s)?
-            
         case 'GET':
-            return "OK", 200
+            return render_template("auth/login.html")
         case _:
             return "Bad Request", 400
     
