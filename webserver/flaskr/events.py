@@ -90,20 +90,27 @@ def handle_init(json):
         cursor = db.cursor()
         cursor.execute(f"INSERT INTO LOCKER (L_ON) VALUES (1)")
         new_id = cursor.lastrowid
-        db.commit()
         
         locker.id = new_id
     else:
         locker.id = json["id"]
+        db.execute(f"UPDATE LOCKER SET L_ON = 1 WHERE ID = {locker.id}")
+    db.commit()
     
     print(f"SID: {request.sid}, LID: {locker.id} - Locker initialized")
     send(f"{locker.id}")
     
 @socketio.on("disconnect")
 def handle_disconnect():
+    db = get_db()
+    
     locker = resolve_sid(request.sid)
+    if not (locker.id is None):
+        db.execute(f"UPDATE LOCKER SET L_ON = 0 WHERE ID = {locker.id}")
+        print(f"LID: {locker.id} - turned off")
+    
     connected_clients.remove(resolve_sid(request.sid))
-    print(f"SocketIO connection terminated with sid: {request.sid}")
+    print(f"SocketIO connection terminated with SID: {request.sid}")
 
 # TODO: Event for pi to send status to server (possibly default message event)
 
