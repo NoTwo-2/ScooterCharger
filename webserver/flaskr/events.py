@@ -4,29 +4,62 @@ from flask_socketio import SocketIO, emit, disconnect, send
 
 from flaskr.sqlite_db import get_db
 
+import datetime
+
 # TODO: Use .env or something similar to handle this
 SECRET = "dev"
 
 socketio = SocketIO(cors_allowed_origins="*")
 
-# class LockerSpace:
-#     pass
+class LockerSpace:
+    def __init__(
+        self
+    ) -> None:
+        
+        self.reserver_id: int = None
+        self.last_res_time: datetime.datetime = None
+    
+    def reserve(self, user_id: int) -> bool:
+        '''
+        Assigns this locker space to the ID of the user passed
+        Returns true if the locker was reserved, false otherwise
+        '''
+        current_datetime = datetime.datetime.utcnow()
+        
+        if not (self.reserver_id is None):
+            return False
+        self.reserver_id = user_id
+        self.last_res_time = current_datetime
+        # TODO: request locker status before officially assigning the locker (prevent race conditions)
+        # TODO: emit reserve event
+    
+    def unreserve(self) -> None:
+        '''
+        Unassigns this locker space
+        '''
+        self.reserver_id = None
 
 class Locker:
-    # locker_list: LockerSpace = []
+    locker_list: "list[LockerSpace]" = []
     
     def __init__(
         self,
         client_sid: str,
-        id: int = None,
-        num_lockers: int = 2
+        id: int = None
     ) -> None:
         self.client_sid = client_sid
-        self.num_lockers = num_lockers
         self.id = id
     
     def __str__(self) -> str:
         return f"ID: {self.id} <-> SID: {self.client_sid}"
+    
+    def init_lockers(self, num_lockers: int):
+        '''
+        Initializes the list of LockerSpaces in this Locker
+        '''
+        for _ in range(num_lockers):
+            new_locker_space = LockerSpace()
+            self.locker_list.append(new_locker_space)
 
 connected_clients: "list[Locker]" = []
 
@@ -43,6 +76,12 @@ def resolve_sid(sid: str) -> Locker:
             return client
     return None
 
+# TODO: Emit events to specific lockers
+
+###############
+# EVENT EMITERS
+###############
+
 ################
 # EVENT HANDLERS
 ################
@@ -57,11 +96,17 @@ def handle_connect():
 def handle_init(json):
     '''
     Client sends:
+    ```
     {
         "auth"          : "<INSERT SECRET HERE>",
         "id"            : "3", 
         "num_lockers"   : "2"
     }
+    ```
+    Server sends:
+    ```
+    <LOCKER ID HERE>
+    ```
     '''
     
     db = get_db()
@@ -82,7 +127,7 @@ def handle_init(json):
         print(f"SID: {request.sid} - Sent no num_locker")
         disconnect()
         return
-    locker.num_lockers = json["num_lockers"]
+    locker.init_lockers(json["num_lockers"])
     
     # Check for ID
     if not ("id" in json):
