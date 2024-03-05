@@ -14,38 +14,6 @@ STATUS_RATE = 300
 
 socketio = SocketIO(cors_allowed_origins="*")
 
-class LockerSpace:
-    def __init__(
-        self
-    ) -> None:
-        
-        self.reserver_id: int = None
-        self.last_res_time: datetime = None
-        
-        self.status: dict = None
-        self.last_stat_time: datetime = None
-        # TODO: some sort of check for if status has been sent within status rate
-    
-    def reserve(self, user_id: int) -> bool:
-        '''
-        Assigns this locker space to the ID of the user passed
-        Returns true if the locker was reserved, false otherwise
-        '''
-        current_datetime = datetime.now()
-        
-        if not (self.reserver_id is None):
-            return False
-        self.reserver_id = user_id
-        self.last_res_time = current_datetime
-        # TODO: request locker status before officially assigning the locker (prevent race conditions)
-        # TODO: emit reserve event
-    
-    def unreserve(self) -> None:
-        '''
-        Unassigns this locker space
-        '''
-        self.reserver_id = None
-
 class Locker:
     locker_list: "list[LockerSpace]" = []
     
@@ -57,12 +25,17 @@ class Locker:
         self.client_sid = client_sid
         self.id = id
         
-        # TODO: Finish
-        # current_datetime = datetime.now()
-        # self.last_status
+        self.last_stat_time: datetime = None
     
     def __str__(self) -> str:
-        return f"ID: {self.id} <-> SID: {self.client_sid}"
+        string = (
+            f"ID: {self.id} <-> SID: {self.client_sid}\n" +
+            f"Last status update: {self.last_stat_time}\n"
+        )
+        for locker_space in self.locker_list:
+            reserved = not locker_space.reserver_id is None
+            string += f"- Reserved: {reserved}, Last Reserved: {locker_space.last_res_time}, Status: {locker_space.status}\n"
+        return string
     
     def init_lockers(self, num_lockers: int):
         '''
@@ -70,11 +43,58 @@ class Locker:
         '''
         self.locker_list = []
         
-        for i in range(num_lockers):
-            new_locker_space = LockerSpace()
+        for _ in range(num_lockers):
+            new_locker_space = LockerSpace(self)
             self.locker_list.append(new_locker_space)
             
-            # TODO: Send unreserve command
+            new_locker_space.unreserve()
+
+class LockerSpace:
+    def __init__(
+        self,
+        parent_locker: Locker
+    ) -> None:
+        self.parent_locker = parent_locker
+        
+        self.reserver_id: int = None
+        self.reserve_duration: int = None # In minutes
+        self.last_res_time: datetime = None
+        
+        self.status: dict = None
+    
+    def get_index(self) -> int:
+        '''
+        Gets index of this object in the Locker's locker_list
+        '''
+        return self.parent_locker.locker_list.index(self)
+    
+    def reserve(self, user_id: int, reserve_duration: int) -> bool:
+        '''
+        Assigns this locker space to the ID of the user passed
+        Returns true if the locker was reserved, false otherwise
+        '''
+        current_datetime = datetime.now()
+        
+        if not (self.reserver_id is None):
+            return False
+        self.reserver_id = user_id
+        self.reserve_duration = reserve_duration
+        self.last_res_time = current_datetime
+        
+        emit("reserve", {
+            "index" : self.get_index()
+        })
+    
+    def unreserve(self) -> None:
+        '''
+        Unassigns this locker space
+        '''
+        emit("unreserve", {
+            "index" : self.get_index()
+        })
+        
+        self.reserver_id = None
+        self.reserve_duration = None
 
 connected_clients: "list[Locker]" = []
 
@@ -155,6 +175,7 @@ def handle_init(json):
     db.commit()
     
     print(f"SID: {request.sid}, LID: {locker.id} - Locker initialized")
+    print(locker)
     emit("init", {
         "id" : locker.id,
         "status_rate" : STATUS_RATE
@@ -212,6 +233,8 @@ def handle_json(json):
         msg = json["error_msg"]
     
     # TODO: Logging
+    current_datetime = datetime.now()
+    locker.last_stat_time = current_datetime
     print(f"SID: {request.sid}, LID: {locker.id} - Recieved Status: {status_code}, Message: {msg}")
         
     # Handle locker space number
@@ -220,9 +243,11 @@ def handle_json(json):
         print(f"SID: {request.sid}, LID: {locker.id} - Num of lockers set to {len(locker_list)}")
         
     # Handle locker info
-    current_datetime = datetime.now()
     for i in range(len(locker_list)):
         locker.locker_list[i].status = locker_list[i]
-        locker.locker_list[i].last_stat_time = current_datetime
+    
+    # TODO: check for expired reservation
+    
+    print(locker)
 
 # TODO: Method for finding sid based on locker info
