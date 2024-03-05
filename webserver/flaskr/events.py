@@ -83,7 +83,7 @@ class LockerSpace:
         
         emit("reserve", {
             "index" : self.get_index()
-        })
+        }, to=self.parent_locker.client_sid)
     
     def unreserve(self) -> None:
         '''
@@ -91,7 +91,7 @@ class LockerSpace:
         '''
         emit("unreserve", {
             "index" : self.get_index()
-        })
+        }, to=self.parent_locker.client_sid)
         
         self.reserver_id = None
         self.reserve_duration = None
@@ -111,12 +111,6 @@ def resolve_sid(sid: str) -> Locker:
             return client
     return None
 
-# TODO: Emit events to specific lockers
-
-###############
-# EVENT EMITERS
-###############
-
 ################
 # EVENT HANDLERS
 ################
@@ -129,25 +123,6 @@ def handle_connect():
 
 @socketio.on("init")
 def handle_init(json):
-    '''
-    Client sends:
-    ```
-    {
-        "auth"          : "<INSERT SECRET HERE>",
-        "id"            : "3", 
-        "num_lockers"   : "2"
-    }
-    ```
-    Server sends:
-    ```
-    "init"
-    {
-        "id"            : "3",
-        "status_rate"   : 300 # IN SECONDS
-    }
-    ```
-    '''
-    
     db = get_db()
     locker = resolve_sid(request.sid)
     
@@ -183,35 +158,11 @@ def handle_init(json):
     
 @socketio.on("disconnect")
 def handle_disconnect():
-    # db = get_db()
-    
-    # locker = resolve_sid(request.sid)
-    # if not (locker.id is None):
-    #     db.execute(f"UPDATE LOCKER SET L_ON = 0 WHERE ID = {locker.id}")
-    #     print(f"LID: {locker.id} - turned off")
-    
     connected_clients.remove(resolve_sid(request.sid))
     print(f"SocketIO connection terminated with SID: {request.sid}")
 
 @socketio.on("json")
 def handle_json(json):
-    '''
-    This will be the format of a standard status update from the client
-    ```
-    {
-        "status_code"   : 0,        
-        # 0 - OK
-        # 1 - non-fatal error, device is still on 
-        # 2 - fatal error, device has shut down
-        "error_msg"     : "OK"      # Only needed if status is not 0
-        "locker_list"   : [
-            <DICT GOES HERE>,
-            <DICT GOES HERE>
-        ]
-    }
-    ```
-    The server will send no response
-    '''
     locker = resolve_sid(request.sid)
     if locker.id is None:
         print(f"SID: {request.sid} - Client has not initialized!")
@@ -249,5 +200,3 @@ def handle_json(json):
     # TODO: check for expired reservation
     
     print(locker)
-
-# TODO: Method for finding sid based on locker info
