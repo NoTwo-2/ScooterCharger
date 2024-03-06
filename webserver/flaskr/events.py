@@ -18,8 +18,8 @@ socketio = SocketIO(cors_allowed_origins="*")
 # HELPER CLASSES
 ################
 
-class Locker:
-    locker_list: "list[LockerSpace]" = []
+class ChargingStation:
+    locker_list: "list[Locker]" = []
     
     def __init__(
         self,
@@ -36,28 +36,28 @@ class Locker:
             f"ID: {self.id} <-> SID: {self.client_sid}\n" +
             f"Last status update: {self.last_stat_time}\n"
         )
-        for locker_space in self.locker_list:
-            string += f"- Reserved: {locker_space.is_reserved}, Last Reserved: {locker_space.last_res_time}, Status: {locker_space.status}\n"
+        for locker in self.locker_list:
+            string += f"- Reserved: {locker.is_reserved}, Last Reserved: {locker.last_res_time}, Status: {locker.status}\n"
         return string
     
     def init_lockers(self, num_lockers: int):
         '''
-        Initializes the list of LockerSpaces in this Locker
+        Initializes the list of Lockers in this ChargingStation
         '''
         self.locker_list = []
         
         for _ in range(num_lockers):
-            new_locker_space = LockerSpace(self)
-            self.locker_list.append(new_locker_space)
+            new_locker = Locker(self)
+            self.locker_list.append(new_locker)
             
-            new_locker_space.unreserve()
+            new_locker.unreserve()
 
-class LockerSpace:
+class Locker:
     def __init__(
         self,
-        parent_locker: Locker
+        parent_station: ChargingStation
     ) -> None:
-        self.parent_locker = parent_locker
+        self.parent_station = parent_station
         
         self.is_reserved: bool = False
         self.reserve_duration: int = None # In minutes
@@ -69,13 +69,13 @@ class LockerSpace:
     
     def get_index(self) -> int:
         '''
-        Gets index of this object in the Locker's locker_list
+        Gets index of this object in the ChargingStations's locker_list
         '''
-        return self.parent_locker.locker_list.index(self)
+        return self.parent_station.locker_list.index(self)
     
     def reserve(self, reserve_duration: int) -> bool:
         '''
-        Assigns this locker space to the ID of the user passed
+        Assigns this locker to the ID of the user passed
         Returns true if the locker was reserved, false otherwise
         '''
         if not self.is_reserved:
@@ -85,8 +85,8 @@ class LockerSpace:
         
         emit("lock", {
             "index" : self.get_index()
-        }, to=self.parent_locker.client_sid)
-        print(f"SERVER - Sent lock command to SID: {self.parent_locker.client_sid}, LID: {self.parent_locker.id}")
+        }, to=self.parent_station.client_sid)
+        print(f"SERVER - Sent lock command to SID: {self.parent_station.client_sid}, LID: {self.parent_station.id}")
     
     def unreserve(self) -> None:
         '''
@@ -94,21 +94,21 @@ class LockerSpace:
         '''
         emit("unlock", {
             "index" : self.get_index()
-        }, to=self.parent_locker.client_sid)
-        print(f"SERVER - Sent unlock command to SID: {self.parent_locker.client_sid}, LID: {self.parent_locker.id}")
+        }, to=self.parent_station.client_sid)
+        print(f"SERVER - Sent unlock command to SID: {self.parent_station.client_sid}, LID: {self.parent_station.id}")
         
         # TODO: notifications (should be done where this function is called from)
         # To provide more context as to why the locker was unreserved
 
-connected_clients: "list[Locker]" = []
+connected_clients: "list[ChargingStation]" = []
 
 ################
 # UTIL FUNCTIONS
 ################
 
-def resolve_sid(sid: str) -> Locker:
+def resolve_sid(sid: str) -> ChargingStation:
     '''
-    Takes an SID and finds the corresponding Locker object
+    Takes an SID and finds the corresponding Charging Station object
     '''
     for client in connected_clients:
         if client.client_sid == sid:
@@ -121,14 +121,14 @@ def resolve_sid(sid: str) -> Locker:
 
 @socketio.on("connect")
 def handle_connect():
-    new_locker = Locker(request.sid)
-    connected_clients.append(new_locker)
+    new_station = ChargingStation(request.sid)
+    connected_clients.append(new_station)
     print(f"SocketIO connection established with sid: {request.sid}")
 
 @socketio.on("init")
 def handle_init(json):
     db = get_db()
-    locker = resolve_sid(request.sid)
+    charging_station = resolve_sid(request.sid)
     
     # Check for auth
     if not ("auth" in json):
@@ -144,114 +144,116 @@ def handle_init(json):
     if not ("id" in json):
         # Create new locker entry in database
         cursor = db.cursor()
-        cursor.execute(f"INSERT INTO LOCKER DEFAULT VALUES")
+        cursor.execute(f"INSERT INTO CHARGING_STATION DEFAULT VALUES")
         new_id = cursor.lastrowid
         
-        locker.id = new_id
+        charging_station.id = new_id
     else:
-        locker.id = json["id"]
+        charging_station.id = json["id"]
         # db.execute(f"UPDATE LOCKER SET L_ON = 1 WHERE ID = {locker.id}")
     db.commit()
     
-    print(f"SID: {request.sid}, LID: {locker.id} - Locker initialized")
-    print(locker)
+    print(f"SID: {request.sid}, CSID: {charging_station.id} - Charging station initialized")
+    print(charging_station)
     emit("init", {
-        "id" : locker.id,
+        "id" : charging_station.id,
         "status_rate" : STATUS_RATE
     })
     
 @socketio.on("disconnect")
 def handle_disconnect():
-    locker = resolve_sid(request)
-    if not (locker.id is None):
+    # TODO: figure this crap out
+    print(request.sid)
+    charging_station = resolve_sid(request)
+    if not (charging_station is None) and not (charging_station.id is None):
         # Unreserve all locker spaces on disconnect
-        for locker_space in locker.locker_list:
-            locker_space.unreserve()
+        for locker in charging_station.locker_list:
+            locker.unreserve()
     
     connected_clients.remove(resolve_sid(request.sid))
     print(f"SocketIO connection terminated with SID: {request.sid}")
 
 @socketio.on("json")
 def handle_json(json):
-    locker = resolve_sid(request.sid)
-    if locker.id is None:
+    charging_station = resolve_sid(request.sid)
+    if charging_station.id is None:
         print(f"SID: {request.sid} - Client has not initialized!")
         disconnect()
         return
     
     # Check for incorrect json
     if not ("status_code" in json) or not ("locker_list" in json):
-        print(f"SID: {request.sid}, LID: {locker.id} - Sent status update with missing information")
+        print(f"SID: {request.sid}, CSID: {charging_station.id} - Sent status update with missing information")
         return
-    status_code: int = json["status_code"]
+    status_code = int(json["status_code"])
     locker_list: "list[dict]" = json["locker_list"]
     msg: str = "OK"
     
     if (status_code != 0):
         if not ("error_msg" in json):
-            print(f"SID: {request.sid}, LID: {locker.id} - Sent status update with error code and no error_msg")
+            print(f"SID: {request.sid}, CSID: {charging_station.id} - Sent status update with error code and no error_msg")
             return
-        msg = json["error_msg"]
+        msg = str(json["error_msg"])
     
     # TODO: Logging
     # TODO: Admin notifications
     current_datetime = datetime.now()
-    locker.last_stat_time = current_datetime
-    print(f"SID: {request.sid}, LID: {locker.id} - Recieved Status: {status_code}, Message: {msg}")
+    charging_station.last_stat_time = current_datetime
+    print(f"SID: {request.sid}, CSID: {charging_station.id} - Recieved status code: {status_code}, Message: '{msg}'")
         
-    # Handle locker space number
-    if len(locker_list) != len(locker.locker_list):
-        locker.init_lockers(len(locker_list))
-        print(f"SID: {request.sid}, LID: {locker.id} - Num of lockers set to {len(locker_list)}")
+    # Handle locker number
+    if len(locker_list) != len(charging_station.locker_list):
+        charging_station.init_lockers(len(locker_list))
+        print(f"SID: {request.sid}, CSID: {charging_station.id} - Num of lockers set to {len(locker_list)}")
         
     # Handle locker info
     for i in range(len(locker_list)):
-        locker.locker_list[i].status = locker_list[i]
+        charging_station.locker_list[i].status = locker_list[i]
     
     # TODO: check for expired reservation
     
-    print(locker)
+    print(charging_station)
 
 @socketio.on("locked")
 def handle_locked(json):
-    locker = resolve_sid(request.sid)
-    if locker.id is None:
+    charging_station = resolve_sid(request.sid)
+    if charging_station.id is None:
         print(f"SID: {request.sid} - Client has not initialized!")
         disconnect()
         return
     
     # Check for incorrect json
-    if not ("locker_space_i" in json):
-        print(f"SID: {request.sid}, LID: {locker.id} - Sent locked with missing information")
+    if not ("locker_i" in json):
+        print(f"SID: {request.sid}, CSID: {charging_station.id} - Sent locked with missing information")
         return
     
-    locker_space_i: int = json["locker_space_i"]
-    locker_space = locker.locker_list[locker_space_i]
+    locker_i = int(json["locker_i"])
+    locker = charging_station.locker_list[locker_i]
     
     # Set all relevant reservation member variables
     current_datetime = datetime.now()
-    locker_space.is_reserved = True
-    locker_space.last_res_time = current_datetime
-    print(f"SID: {request.sid}, LID: {locker.id} - Locked space {locker_space_i}")
+    locker.is_reserved = True
+    locker.last_res_time = current_datetime
+    print(f"SID: {request.sid}, CSID: {charging_station.id} - Locked locker {locker}")
 
 @socketio.on("unlocked")
 def handle_unlocked(json):
-    locker = resolve_sid(request.sid)
-    if locker.id is None:
+    charging_station = resolve_sid(request.sid)
+    if charging_station.id is None:
         print(f"SID: {request.sid} - Client has not initialized!")
         disconnect()
         return
     
     # Check for incorrect json
-    if not ("locker_space_i" in json):
-        print(f"SID: {request.sid}, LID: {locker.id} - Sent unocked with missing information")
+    if not ("locker_i" in json):
+        print(f"SID: {request.sid}, LID: {charging_station.id} - Sent unocked with missing information")
         return
     
-    locker_space_i: int = json["locker_space_i"]
-    locker_space = locker.locker_list[locker_space_i]
+    locker_i= int(json["locker_i"])
+    locker = charging_station.locker_list[locker_i]
     
     # Set all relecant unreservation member variables
-    locker_space.is_reserved = False
-    locker_space.reserve_duration = None
+    locker.is_reserved = False
+    locker.reserve_duration = None
     
-    print(f"SID: {request.sid}, LID: {locker.id} - Unocked space {locker_space_i}")
+    print(f"SID: {request.sid}, CSID: {charging_station.id} - Unocked locker {locker_i}")
