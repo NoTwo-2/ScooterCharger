@@ -14,6 +14,10 @@ STATUS_RATE = 300
 
 socketio = SocketIO(cors_allowed_origins="*")
 
+################
+# HELPER CLASSES
+################
+
 class Locker:
     locker_list: "list[LockerSpace]" = []
     
@@ -33,8 +37,7 @@ class Locker:
             f"Last status update: {self.last_stat_time}\n"
         )
         for locker_space in self.locker_list:
-            reserved = not locker_space.reserver_id is None
-            string += f"- Reserved: {reserved}, Last Reserved: {locker_space.last_res_time}, Status: {locker_space.status}\n"
+            string += f"- Reserved: {locker_space.is_reserved}, Last Reserved: {locker_space.last_res_time}, Status: {locker_space.status}\n"
         return string
     
     def init_lockers(self, num_lockers: int):
@@ -56,9 +59,11 @@ class LockerSpace:
     ) -> None:
         self.parent_locker = parent_locker
         
-        self.reserver_id: int = None
+        self.is_reserved: bool = False
         self.reserve_duration: int = None # In minutes
         self.last_res_time: datetime = None
+        
+        # TODO: Add error state variable for reservations
         
         self.status: dict = None
     
@@ -68,42 +73,32 @@ class LockerSpace:
         '''
         return self.parent_locker.locker_list.index(self)
     
-    def reserve(self, user_id: int, reserve_duration: int) -> bool:
+    def reserve(self, reserve_duration: int) -> bool:
         '''
         Assigns this locker space to the ID of the user passed
         Returns true if the locker was reserved, false otherwise
         '''
-        current_datetime = datetime.now()
-        
-        if not (self.reserver_id is None):
+        if not self.is_reserved:
             return False
-        self.reserver_id = user_id
         self.reserve_duration = reserve_duration
-        self.last_res_time = current_datetime
+        # We set the rest of the relevant variables in the event handler (when the locker confirms the reservation)
         
-        emit("reserve", {
+        emit("lock", {
             "index" : self.get_index()
         }, to=self.parent_locker.client_sid)
+        print(f"SERVER - Sent lock command to SID: {self.parent_locker.client_sid}, LID: {self.parent_locker.id}")
     
     def unreserve(self) -> None:
         '''
         Unassigns this locker space
         '''
-        emit("unreserve", {
+        emit("unlock", {
             "index" : self.get_index()
         }, to=self.parent_locker.client_sid)
-        
-        self.reserver_id = None
-        self.reserve_duration = None
+        print(f"SERVER - Sent unlock command to SID: {self.parent_locker.client_sid}, LID: {self.parent_locker.id}")
         
         # TODO: notifications (should be done where this function is called from)
         # To provide more context as to why the locker was unreserved
-    
-    def is_reserved(self) -> bool:
-        '''
-        Returns True if this space is reserved, False otherwise
-        '''
-        return not self.reserver_id is None 
 
 connected_clients: "list[Locker]" = []
 
@@ -184,9 +179,9 @@ def handle_json(json):
         disconnect()
         return
     
-    # Check for malformed json
+    # Check for incorrect json
     if not ("status_code" in json) or not ("locker_list" in json):
-        print(f"SID: {request.sid}, LID: {locker.id} - Sent malformed status update")
+        print(f"SID: {request.sid}, LID: {locker.id} - Sent status update with missing information")
         return
     status_code: int = json["status_code"]
     locker_list: "list[dict]" = json["locker_list"]
@@ -194,7 +189,7 @@ def handle_json(json):
     
     if (status_code != 0):
         if not ("error_msg" in json):
-            print(f"SID: {request.sid}, LID: {locker.id} - Sent error code with no error_msg")
+            print(f"SID: {request.sid}, LID: {locker.id} - Sent status update with error code and no error_msg")
             return
         msg = json["error_msg"]
     
@@ -216,3 +211,47 @@ def handle_json(json):
     # TODO: check for expired reservation
     
     print(locker)
+
+@socketio.on("locked")
+def handle_locked(json):
+    locker = resolve_sid(request.sid)
+    if locker.id is None:
+        print(f"SID: {request.sid} - Client has not initialized!")
+        disconnect()
+        return
+    
+    # Check for incorrect json
+    if not ("locker_space_i" in json):
+        print(f"SID: {request.sid}, LID: {locker.id} - Sent locked with missing information")
+        return
+    
+    locker_space_i: int = json["locker_space_i"]
+    locker_space = locker.locker_list[locker_space_i]
+    
+    # Set all relevant reservation member variables
+    current_datetime = datetime.now()
+    locker_space.is_reserved = True
+    locker_space.last_res_time = current_datetime
+    print(f"SID: {request.sid}, LID: {locker.id} - Locked space {locker_space_i}")
+
+@socketio.on("unlocked")
+def handle_unlocked(json):
+    locker = resolve_sid(request.sid)
+    if locker.id is None:
+        print(f"SID: {request.sid} - Client has not initialized!")
+        disconnect()
+        return
+    
+    # Check for incorrect json
+    if not ("locker_space_i" in json):
+        print(f"SID: {request.sid}, LID: {locker.id} - Sent unocked with missing information")
+        return
+    
+    locker_space_i: int = json["locker_space_i"]
+    locker_space = locker.locker_list[locker_space_i]
+    
+    # Set all relecant unreservation member variables
+    locker_space.is_reserved = False
+    locker_space.reserve_duration = None
+    
+    print(f"SID: {request.sid}, LID: {locker.id} - Unocked space {locker_space_i}")
