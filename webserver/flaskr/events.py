@@ -95,6 +95,15 @@ class LockerSpace:
         
         self.reserver_id = None
         self.reserve_duration = None
+        
+        # TODO: notifications (should be done where this function is called from)
+        # To provide more context as to why the locker was unreserved
+    
+    def is_reserved(self) -> bool:
+        '''
+        Returns True if this space is reserved, False otherwise
+        '''
+        return not self.reserver_id is None 
 
 connected_clients: "list[Locker]" = []
 
@@ -158,6 +167,12 @@ def handle_init(json):
     
 @socketio.on("disconnect")
 def handle_disconnect():
+    locker = resolve_sid(request)
+    if not (locker.id is None):
+        # Unreserve all locker spaces on disconnect
+        for locker_space in locker.locker_list:
+            locker_space.unreserve()
+    
     connected_clients.remove(resolve_sid(request.sid))
     print(f"SocketIO connection terminated with SID: {request.sid}")
 
@@ -184,6 +199,7 @@ def handle_json(json):
         msg = json["error_msg"]
     
     # TODO: Logging
+    # TODO: Admin notifications
     current_datetime = datetime.now()
     locker.last_stat_time = current_datetime
     print(f"SID: {request.sid}, LID: {locker.id} - Recieved Status: {status_code}, Message: {msg}")
