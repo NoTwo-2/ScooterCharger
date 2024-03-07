@@ -162,12 +162,6 @@ def handle_init(json):
     
 @socketio.on("disconnect")
 def handle_disconnect():
-    charging_station = resolve_sid(request.sid)
-    if not (charging_station is None) and not (charging_station.id is None):
-        # Unreserve all locker spaces on disconnect
-        for locker in charging_station.locker_list:
-            locker.unreserve()
-    
     connected_clients.remove(resolve_sid(request.sid))
     print(f"SocketIO connection terminated with SID: {request.sid}")
 
