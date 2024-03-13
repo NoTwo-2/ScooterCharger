@@ -67,14 +67,14 @@ def login():
             email = request.form['email']
             password = request.form['password']
             
-            user = db.execute(f"SELECT * FROM APPUSER WHERE EMAIL = '{email}'").fetchone()
+            user = db.execute(f"SELECT rowid, * FROM APPUSER WHERE EMAIL = '{email}'").fetchone()
             password_correct = check_password_hash(user['PASSKEY'], password)
             if (user is None) or (not password_correct):
                 return "Bad Request", 400 # TODO: Maybe render login page with a custom message here
             
             # JWT REPLACEMENT!
             session.clear()
-            session[USER_ID_COOKIE] = user['ID']
+            session[USER_ID_COOKIE] = user['rowid']
             return "OK", 200 # TODO: User landing page(s)?
         case 'GET':
             return render_template("auth/login.html")
@@ -95,4 +95,4 @@ def load_user():
     if user_id is None:
         g.user = None
     else:
-        g.user = db.execute(f"SELECT * FROM APPUSER WHERE ID = '{user_id}'").fetchone()
+        g.user = db.execute(f"SELECT rowid, * FROM APPUSER WHERE rowid = '{user_id}'").fetchone()

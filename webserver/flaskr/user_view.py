@@ -14,17 +14,17 @@ bp = Blueprint('user_view', __name__)
 #   else redirect to avaiolable lockers list
 @bp.route('/home', methods=['GET'])
 def home():
-
     # check for account
     if not g.user:
         return redirect('/auth/login')
     
-    # check for active reseervation
-    user_id = g.user["ID"]
-    if not g.user["RESERVED_CS_SPACE_I INT"]:
+    for key in g.user.keys():
+        print(f"{key}, {g.user[key]}")
+    
+    if not g.user["RESERVED_CS_SPACE_I"]:
         return redirect('/view-available')
 
-    active_res = g.user["RESERVED_CS_SPACE_I INT"]
+    active_res = g.user["RESERVED_CS_SPACE_I"]
     return redirect(url_for('/manage-locker'))
 
 
