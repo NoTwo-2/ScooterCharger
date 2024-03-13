@@ -30,8 +30,8 @@ def create_app() -> Flask:
     # Import blueprints
     from . import auth
     app.register_blueprint(auth.bp)
-    # from . import api
-    # app.register_blueprint(api.bp)
+    from . import user_view
+    app.register_blueprint(user_view.bp)
 
     @app.route("/")
     def route_to_auth():
