@@ -60,13 +60,13 @@ def show_available_lockers():
 
     # put location and num_locker into dictionary
     for row in records:
-        if cs[0] == row[0]:
+        if avail[0] == row[0]:
             avail_lckr.append({
                 "cs_id": row[0],
                 "cs_name": row[1],
                 "cs_gmap_link": row[2],
                 "cs_address": row[3],
-                "cs_num_avail": cs[1]
+                "cs_num_avail": avail[1]
             })
             break
 
