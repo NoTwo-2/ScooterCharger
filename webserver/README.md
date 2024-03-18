@@ -50,11 +50,13 @@ This will be how the client sends status updates and error messages to the serve
     "error_msg" : "Failed to lock locker 2", // This is conditionally optional (see below)
     "locker_list" : [ // This is required
         {
+            "state" : "locked",
             "temperature" : 90,
             "current" : 0,
             // More entries can be added here
         },
         {
+            "state" : "unlocked",
             "temperature" : 90,
             "current" : 50,
             // More entries can be added here
@@ -67,29 +69,8 @@ This event will eventually handle logging and admin notifications, as well as ke
 
 - **status_code** (Required) - This is a numeric representation of the status of the locker. `0` means there are no problems, `1` means an error has occured, but the charging station is still operational, `2` means a fatal error has occured and the charging station is no longer operational.
 - **error_msg** - This is a string containing a custom error message describing the error in more detail upon receiving a `1` or `2` in the `status_code`.
-- **locker_list** - This is an array of JSON objects containing various information from each locker. **IMPORTANT**: every time the client emits this event, it must send information for *all lockers and in the same order*. This list is how lockers are given their indexes. Otherwise, the information provided here will only be used for logging purposes.
-
-### "locked"
-This is sent by the client as a response to the server emitting the `"lock"` event (see [Client Side Event Listeners](#client-side-event-listeners)) and should include the following JSON:
-```json
-{
-    "locker_i" : 0 // This is required
-}
-```
-This event is basically the client telling the server that it has successfully locked the locker the server requested it to.
-
-- **locker_i** - This is the index of the locker the client has locked. The first locker will always have an index of `0`.
-
-### "unlocked"
-Similar to the `"locked"` event, this is sent by the client as a response to the server emitting the `"unlock"` event (see [Client Side Event Listeners](#client-side-event-listeners)) and should include the following JSON:
-```json
-{
-    "locker_i" : 0 // This is required
-}
-```
-This event is basically the client telling the server that it has successfully unlocked the locker the server requested it to.
-
-- **locker_i** - This is the index of the locker the client has unlocked. The first locker will always have an index of `0`.
+- **locker_list** - This is an array of JSON objects containing various information from each locker. Required values are provided below. **IMPORTANT**: every time the client emits this event, it must send information for *all lockers and in the same order*. This list is how lockers are given their indexes. Otherwise, the information provided here will only be used for logging purposes.
+    - **state** - This stores whether the specific locker is available or not.
 
 ## Client Side Event Listeners
 

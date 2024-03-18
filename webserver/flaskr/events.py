@@ -115,6 +115,13 @@ def resolve_sid(sid: str) -> ChargingStation:
             return client
     return None
 
+def get_changed_lockers(old_lockers: "list[dict]", new_lockers: "list[dict]") -> "tuple[list[int], list[int]]":
+    '''
+    This will return lockers that have been locked or unlocked in-between status updates via "json"
+    '''
+    # TODO: finish
+    #for _ in 
+
 ################
 # EVENT HANDLERS
 ################
@@ -198,14 +205,28 @@ def handle_json(json):
         charging_station.init_lockers(len(locker_list))
         print(f"SID: {request.sid}, CSID: {charging_station.id} - Num of lockers set to {len(locker_list)}")
         
+    # TODO: check for locked/unlocked lockers
+    
+        
     # Handle locker info
     for i in range(len(locker_list)):
         charging_station.locker_list[i].status = locker_list[i]
     
     # TODO: check for expired reservation
     
+    # DEBUG
+    # if charging_station.locker_list[0].status["state"] != "locked":
+    #     emit("lock", {
+    #         "index" : 0,
+    #     })
+    # else:
+    #     emit("unlock", {
+    #         "index" : 0,
+    #     })
+    
     print(charging_station)
 
+# TODO: remove this
 @socketio.on("locked")
 def handle_locked(json):
     charging_station = resolve_sid(request.sid)
@@ -228,6 +249,7 @@ def handle_locked(json):
     locker.last_res_time = current_datetime
     print(f"SID: {request.sid}, CSID: {charging_station.id} - Locked locker {locker}")
 
+# TODO: remove this
 @socketio.on("unlocked")
 def handle_unlocked(json):
     charging_station = resolve_sid(request.sid)
