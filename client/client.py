@@ -2,6 +2,9 @@ import socketio
 from datetime import datetime
 import time, os
 
+from config import server_url
+
+# TODO: order IO devices so that they can be accessed via a locker index
 def find_temp_sensors():
     temp_sensors = []
     for i in os.listdir('/sys/bus/w1/devices'):
@@ -17,11 +20,9 @@ def read_temp(sensor_num):
 # Create a Socket.IO client
 sio = socketio.Client()
 
-# Define the URL of the Socket.IO server
-server_url = 'http://192.168.0.120:5000'  # Change this to your server's IP address and port
-
+# TODO: Initialize this list according to how many IO devices are present (is there an automatic way to figure this out via code?)
 lockers = [{"state": "unlocked", "temperature": 0, "current": 0}, {"state": "OFF", "temperature": 0, "current": 0}]
-
+initialized = False
 
 @sio.event
 def connect():
@@ -33,16 +34,21 @@ def on_init(data):
     print(f"Server says: {data}")
     save_id = data['id']
     save_rate = data['status_rate']
-    sio.emit('json', {'status_code': 0, "locker_list": lockers})
+    global initialized
+    initialized = True
 
 @sio.on('lock')
 def lock(data):
-    lockers[data['index']]['state'] = "locked"
+    locker_index = data['index']
+    print(f"Locking locker {locker_index}")
+    lockers[locker_index]['state'] = "locked"
     sio.emit('json', {'status_code': 0, "locker_list": lockers})
 
 @sio.on('unlock')
 def unlock(data):
-    lockers[data['index']]['state'] = "unlocked"
+    locker_index = data['index']
+    print(f"Unlocking locker {locker_index}")
+    lockers[locker_index]['state'] = "unlocked"
     sio.emit('json', {'status_code': 0, "locker_list": lockers})
     
 @sio.event
@@ -51,20 +57,24 @@ def disconnect():
 
 def send_time_message():
     while True:
-        # Get the current time
-        cur_temp = read_temp(temp_sensors[0])
-        lockers[0]["temperature"] = cur_temp
+        # Get the current temperature
+        # cur_temp = read_temp(temp_sensors[0])
+        # lockers[0]["temperature"] = cur_temp
         
         # Emit the message with the current time
         sio.emit('json', {'status_code': 0, "locker_list": lockers})
-        print(f"Sent time_message: {lockers}")
+        print(f"Sent message: {lockers}")
         
         # Wait for 10 seconds before sending the next message
         time.sleep(10)
 
 if __name__ == '__main__':
-    temp_sensors = find_temp_sensors()
+    # temp_sensors = find_temp_sensors()
+    print(f"Attempting connection to {server_url}...")
     sio.connect(server_url)
+    while not initialized:
+        continue
+    print("Finished initialization")
     try:
         send_time_message()
     except KeyboardInterrupt:
