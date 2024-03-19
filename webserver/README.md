@@ -67,10 +67,15 @@ This will be how the client sends status updates and error messages to the serve
 ```
 This event will eventually handle logging and admin notifications, as well as keep track of expired reservations.
 
-- **status_code** (Required) - This is a numeric representation of the status of the locker. `0` means there are no problems, `1` means an error has occured, but the charging station is still operational, `2` means a fatal error has occured and the charging station is no longer operational.
-- **error_msg** - This is a string containing a custom error message describing the error in more detail upon receiving a `1` or `2` in the `status_code`.
+- **status_code** (Required) - This is a numeric representation of the status of the locker. 
+    - `0` means there are no problems
+    - `1` means an error has occured, but the charging station is still operational
+    - `2` means a fatal error has occured and the charging station is no longer operational
+- **error_msg** - This is a string containing a custom error message describing the error in more detail upon receiving a value greater than `0` in the `status_code`.
 - **locker_list** - This is an array of JSON objects containing various information from each locker. Required values are provided below. **IMPORTANT**: every time the client emits this event, it must send information for *all lockers and in the same order*. This list is how lockers are given their indexes. Otherwise, the information provided here will only be used for logging purposes.
     - **state** - This stores whether the specific locker is available or not.
+        - `"unlocked"` means the locker is unlocked and available for reservation
+        - `"locked"` means the locker is locked
 
 ## Client Side Event Listeners
 
@@ -93,7 +98,7 @@ The server sends this when it wants a locker to be locked and will contain the f
     "index" : 0
 }
 ```
-When the client receives this event, it should attempt to lock the locker, and if successful, it should emit the `"locked"` event (see [Server Side Event Listeners](#server-side-event-listeners)).
+When the client receives this event, it should attempt to lock the locker, and if successful, it should emit the `"json"` event (see [Server Side Event Listeners](#server-side-event-listeners)).
 
 - **index** - The index of the locker the server wants the client to lock. The first locker should always have an index of `0`.
 
@@ -104,6 +109,6 @@ Similar to the `"lock"` event, the server sends this when it wants a locker to b
     "index" : 0
 }
 ```
-When the client receives this event, it should attempt to unlock the locker, and if successful, it should emit the `"unlocked"` event (see [Server Side Event Listeners](#server-side-event-listeners)).
+When the client receives this event, it should attempt to unlock the locker, and if successful, it should emit the `"json"` event (see [Server Side Event Listeners](#server-side-event-listeners)).
 
 - **index** - The index of the locker the server wants the client to unlock. The first locker should always have an index of `0`.

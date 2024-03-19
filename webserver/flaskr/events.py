@@ -63,9 +63,7 @@ class Locker:
         self.reserve_duration: int = None # In minutes
         self.last_res_time: datetime = None
         
-        # TODO: Add error state variable for reservations
-        
-        self.status: dict = None
+        self.status: dict = {"state" : "unlocked"}
     
     def get_index(self) -> int:
         '''
@@ -78,10 +76,11 @@ class Locker:
         Assigns this locker to the ID of the user passed
         Returns true if the locker was reserved, false otherwise
         '''
-        if not self.is_reserved:
+        if not self.is_reserved or self.status["state"] != "unlocked":
             return False
+        self.is_reserved = True
         self.reserve_duration = reserve_duration
-        # We set the rest of the relevant variables in the event handler (when the locker confirms the reservation)
+        self.last_res_time = datetime.now()
         
         emit("lock", {
             "index" : self.get_index()
@@ -92,6 +91,9 @@ class Locker:
         '''
         Unassigns this locker space
         '''
+        self.is_reserved = False
+        self.reserve_duration = None
+        
         emit("unlock", {
             "index" : self.get_index()
         }, to=self.parent_station.client_sid)
@@ -114,13 +116,6 @@ def resolve_sid(sid: str) -> ChargingStation:
         if client.client_sid == sid:
             return client
     return None
-
-def get_changed_lockers(old_lockers: "list[dict]", new_lockers: "list[dict]") -> "tuple[list[int], list[int]]":
-    '''
-    This will return lockers that have been locked or unlocked in-between status updates via "json"
-    '''
-    # TODO: finish
-    #for _ in 
 
 ################
 # EVENT HANDLERS
@@ -194,6 +189,11 @@ def handle_json(json):
             return
         msg = str(json["error_msg"])
     
+    for locker in locker_list:
+        if not ("state" in locker):
+            print(f"SID: {request.sid}, CSID: {charging_station.id} - Sent locker_list in status update with missing information")
+            return
+    
     # TODO: Logging
     # TODO: Admin notifications
     current_datetime = datetime.now()
@@ -204,25 +204,13 @@ def handle_json(json):
     if len(locker_list) != len(charging_station.locker_list):
         charging_station.init_lockers(len(locker_list))
         print(f"SID: {request.sid}, CSID: {charging_station.id} - Num of lockers set to {len(locker_list)}")
-        
-    # TODO: check for locked/unlocked lockers
     
-        
     # Handle locker info
     for i in range(len(locker_list)):
-        charging_station.locker_list[i].status = locker_list[i]
+        locker = charging_station.locker_list[i]
+        locker.status = locker_list[i]
     
     # TODO: check for expired reservation
-    
-    # DEBUG
-    # if charging_station.locker_list[0].status["state"] != "locked":
-    #     emit("lock", {
-    #         "index" : 0,
-    #     })
-    # else:
-    #     emit("unlock", {
-    #         "index" : 0,
-    #     })
     
     print(charging_station)
 
