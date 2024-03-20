@@ -68,14 +68,16 @@ def login():
             password = request.form['password']
             
             user = db.execute(f"SELECT rowid, * FROM APPUSER WHERE EMAIL = '{email}'").fetchone()
+            if user is None:
+                return "Bad Request", 400 # TODO: Maybe render login page with error message here
             password_correct = check_password_hash(user['PASSKEY'], password)
-            if (user is None) or (not password_correct):
-                return "Bad Request", 400 # TODO: Maybe render login page with a custom message here
+            if not password_correct:
+                return "Bad Request", 400 # TODO: Maybe render login page with error message here
             
             # JWT REPLACEMENT!
             session.clear()
             session[USER_ID_COOKIE] = user['rowid']
-            return "OK", 200 # TODO: User landing page(s)?
+            return redirect(url_for("user_view.home"))
         case 'GET':
             return render_template("auth/login.html")
         case _:

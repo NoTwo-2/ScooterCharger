@@ -1,6 +1,6 @@
 from flask import Flask, Blueprint, request, g, session, redirect, url_for
 
-from .events import connected_clients
+from .events import connected_clients, Locker, ChargingStation
 # from .auth import load_user
 from flaskr.sqlite_db import get_db
 
@@ -18,9 +18,6 @@ def home():
     if not g.user:
         return redirect('/auth/login')
     
-    for key in g.user.keys():
-        print(f"{key}, {g.user[key]}")
-    
     if not g.user["RESERVED_CS_SPACE_I"]:
         return redirect('/view-available')
 
@@ -34,43 +31,40 @@ def home():
 def show_available_lockers():
 
     # list of dictionaries (cs table + num_lockers)
-    avail_lckr = []
+    avail_lckr: "list[dict]" = []
 
-    # list of tuples (cs.id, num_lockers)
-    avail = []
+    # list of ChargingStation objects
+    avail: "list[ChargingStation]" = []
 
     # add cs with available lockers to avail list with num_lockers
     for cs in connected_clients:
-        has_unreserved = 1
-        num_lockers = 0
-
-        if cs.locker_list:
-            for lckr in cs.locker_list:
-                if lckr.is_reserved:
-                    has_unreserved = 0
-                    break
-                else:
-                    num_lockers += 1
-            if has_unreserved:
-                avail.append((cs.id, num_lockers))
+        avail.append(cs)
 
     # get cs table data
     db = get_db()
-    records = db.execute(f"SELECT * FROM CHARGING_STATION").fetchall()
+    records = db.execute(f"SELECT rowid, * FROM CHARGING_STATION").fetchall()
 
     # put location and num_locker into dictionary
-    for row in records:
-        if avail[0] == row[0]:
-            avail_lckr.append({
-                "cs_id": row[0],
-                "cs_name": row[1],
-                "cs_gmap_link": row[2],
-                "cs_address": row[3],
-                "cs_num_avail": avail[1]
-            })
+    for cs in avail:
+        for row in records:
+            if cs.id != row[0]:
+                continue
+            
+            for i in range(len(cs.locker_list)):
+                locker = cs.locker_list[i]
+                if locker.is_reserved:
+                    continue
+                
+                avail_lckr.append({
+                    "locker_id": i,
+                    "cs_id": row[0],
+                    "cs_name": row[1],
+                    "cs_gmap_link": row[2],
+                    "cs_address": row[3]
+                })
             break
 
-    return avail_lckr
+    return {"available_lockers" : avail_lckr}
 
 
 # Reservation Form Page (3)
