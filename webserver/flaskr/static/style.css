@@ -44,26 +44,56 @@ body {
 
 .landing-page-container {
   align-items: center;
-  background-image: url("images/landing_page_background.png");
+  background-image: url("images/authentication_page_background.png");
   background-position: center center;
   background-repeat: no-repeat;
-  background-size: auto 100%;
+  background-size: cover;
   display: flex;
   flex-direction: column;
-  position: relative;
-  height: 100%;
+  height: 100vh;
+  justify-content: flex-start; /* Change to flex-start to align content to the top */
+  padding-top: 80px; 
 }
 
-.landing-page-container form {
-  align-items: flex-end;
-  background-position: left center;
-  background-repeat: no-repeat;
-  bottom: 25%;
-  display: flex;
-  margin-right: 3%;
-  position: fixed;
-  justify-content: center;
+.form-container {
+  width: 80%;
 }
+
+.form1 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.form1 h1 {
+  margin-bottom: 20px; /* Adjusted margin-bottom value */
+}
+
+.locker-container {
+  display: flex;
+  flex-direction: column; /* Change to column to stack lockers vertically */
+  align-items: center; /* Center lockers horizontally */
+  margin-top: 20px; /* Add margin to separate lockers from title */
+}
+
+.locker {
+  padding: 20px;
+  border: 1px solid #ccc;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.3s ease-in-out;
+  margin-bottom: 10px; /* Add margin between lockers */
+}
+
+.locker:hover {
+  background-color: #f0f0f0;
+}
+
+/* Optional: Add a subtle box-shadow on hover for a more interactive feel */
+.locker:hover {
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+}
+
 
 /* =============================================================================
  * AUTHENTICATION PAGE STYLING

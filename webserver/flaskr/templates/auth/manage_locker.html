@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block title %}Reservation Management{% endblock %}
+
+{% block content %}
+<style>
+  .locker img {
+    width: 50px; 
+    height: auto; 
+  }
+</style>
+<div class="landing-page-container">
+  <div class="form-container">
+    <form method="post" class="form1">
+      <h1>Reservation Management</h1>
+    </form>
+    <div class="locker-container">
+      {% if not g.user %}
+      <p>Please login to manage your reservations.</p>
+      {% else %}
+      <h2>Cancel Reservation</h2>
+      <form method="post" action="{{ url_for('user_view.cancel_reservation') }}">
+        <button type="submit">Cancel Reservation</button>
+      </form>
+      <h2>Lock/Unlock Locker</h2>
+      <form method="post" action="/manage-locker">
+        <button type="submit">Lock/Unlock Locker</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% for message in get_flashed_messages() %}
+<div class="flash">{{ message }}</div>
+{% endfor %}
+{% endblock %}

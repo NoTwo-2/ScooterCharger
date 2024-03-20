@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% block title %}Lockers{% endblock %}
+
+{% block content %}
+<style>
+  .locker img {
+    width: 50px; /* Adjust the width as per your requirement */
+    height: auto; /* This will maintain the aspect ratio */
+  }
+</style>
+  <div class="landing-page-container">
+    <div class="form-container">
+      <form method="post" class="form1">
+        <h1>Available Lockers</h1>
+      </form>
+      <div class="locker-container">
+        {% for locker in lockers %}
+        <form method="post" action="/reserve-locker">
+          <input type="hidden" name="station_id" value="{{ locker.cs_id }}">
+          <input type="hidden" name="locker_id" value="{{ locker.locker_id }}">
+          <div class="locker" onclick="this.parentNode.submit()">
+            <img src="../../static/images/electric-vehicle-charging-station-icon-in-gradient-colors-png.png">
+            <h2>Locker {{ locker.locker_id }}</h2>
+            <p>Charging Station: {{ locker.cs_name }}</p>
+            <p>Address: {{ locker.cs_address }}</p>
+          </div>
+        </form>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% for message in get_flashed_messages() %}
+    <div class="flash">{{ message }}</div> 
+  {% endfor %}
+{% endblock %}
+

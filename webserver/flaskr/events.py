@@ -82,7 +82,7 @@ class Locker:
         self.reserve_duration = reserve_duration
         self.last_res_time = datetime.now()
         
-        emit("lock", {
+        socketio.emit("lock", {
             "index" : self.get_index()
         }, to=self.parent_station.client_sid)
         print(f"SERVER - Sent lock command to SID: {self.parent_station.client_sid}, LID: {self.parent_station.id}")
@@ -94,7 +94,7 @@ class Locker:
         self.is_reserved = False
         self.reserve_duration = None
         
-        emit("unlock", {
+        socketio.emit("unlock", {
             "index" : self.get_index()
         }, to=self.parent_station.client_sid)
         print(f"SERVER - Sent unlock command to SID: {self.parent_station.client_sid}, LID: {self.parent_station.id}")
@@ -159,7 +159,7 @@ def handle_init(json):
     
     print(f"SID: {request.sid}, CSID: {charging_station.id} - Charging station initialized")
     print(charging_station)
-    emit("init", {
+    socketio.emit("init", {
         "id" : charging_station.id,
         "status_rate" : STATUS_RATE
     })

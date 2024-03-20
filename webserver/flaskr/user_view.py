@@ -1,4 +1,4 @@
-from flask import Flask, Blueprint, request, g, session, redirect, url_for
+from flask import Flask, Blueprint, request, g, session, redirect, url_for, render_template, flash
 
 from .events import connected_clients, Locker, ChargingStation
 # from .auth import load_user
@@ -65,7 +65,7 @@ def show_available_lockers():
                 })
             break
 
-    return {"available_lockers" : avail_lckr}
+    return render_template('auth/view_available.html', lockers=avail_lckr) 
 
 # Reservation Form Page (3)
 # select a charging station and reserve locker
@@ -74,7 +74,7 @@ def reserve_locker():
     # check for account
     if not g.user:
         return redirect('/auth/login')
-    user_id = g.user["ID"]
+    user_id = g.user["rowid"]
 
     match request.method:
         case 'POST':
@@ -89,12 +89,11 @@ def reserve_locker():
                     break
 
             if not charger or not charger.locker_list:
-                return "Charging Station not found.", redirect('/view-available')
-
+                flash("Charging station not found")
             # find available locker
             lckr: Locker = charger.locker_list[locker_i]
             if lckr.is_reserved or (lckr.status["state"] != "unlocked"):
-                return "Locker is unavailable.", redirect('/view-available')
+                flash("Locker is unavailable")
     
             # start reservation
             reserve_time = 120
@@ -105,9 +104,9 @@ def reserve_locker():
                 f"UPDATE APPUSER "
                 f"SET RESERVED_CS_ID = {cs_id}, "
                     f"RESERVED_CS_SPACE_I = {lckr.get_index()} "
-                f"WHERE ID = {user_id}"
+                f"WHERE rowid = {user_id}"
             )
-
+            db.commit()
             return redirect('/manage-locker')
         case _:
             return "Bad Request", 400
@@ -120,8 +119,7 @@ def cancel_reservation():
     # check for account
     if not g.user:
         return redirect('/auth/login')
-    user_id = g.user["ID"]
-    
+    user_id = g.user["rowid"]
     match request.method:
         case 'POST':
             # check for reservation
@@ -131,17 +129,17 @@ def cancel_reservation():
             locker_i = int(row["RESERVED_CS_SPACE_I"])
             
             if cs_id is None or locker_i is None:
-                return "No active reservation", redirect(url_for("user_view.view-available"))
+                return redirect(url_for("user_view.view-available")) #"No active reservation", 
             
             lckr = None
             for cs in connected_clients:
                 if cs_id != cs.id:
                     continue
                 if locker_i >= len(cs.locker_list):
-                    return "Locker index out of range", redirect(url_for("user_view.view-available"))
+                    return redirect(url_for("user_view.view-available")) #"Locker index out of range",
                 lckr = cs.locker_list[locker_i]
             if not lckr:
-                return "Could not find locker", redirect(url_for("user_view.view-available"))
+                return redirect(url_for("user_view.view-available")) # "Could not find locker", 
     
             # end reservation
             lckr.unreserve()
@@ -151,10 +149,13 @@ def cancel_reservation():
                 f"UPDATE APPUSER "
                 f"SET RESERVED_CS_ID = NULL, "
                     f"RESERVED_CS_SPACE_I = NULL "
-            f"WHERE ID = {user_id}"
+            f"WHERE rowid = {user_id}"
             )
-
+            db.commit()
+            
             return redirect('/home')
+        case 'GET':
+            return render_template('auth/manage_locker.html')
         case _:
             return "Bad Request", 400
 

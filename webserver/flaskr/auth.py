@@ -82,8 +82,7 @@ def login():
             return render_template("auth/login.html")
         case _:
             return "Bad Request", 400
-    
-    # TODO: The page will be rendered down here eventually
+
 
 @bp.before_app_request
 def load_user():
