@@ -22,7 +22,7 @@ def home():
         return redirect('/view-available')
 
     active_res = g.user["RESERVED_CS_SPACE_I"]
-    return redirect(url_for('/manage-locker'))
+    return redirect('/manage-locker')
 
 
 # Lockers Page (2)
@@ -67,7 +67,6 @@ def show_available_lockers():
 
     return {"available_lockers" : avail_lckr}
 
-# http://localhost:5000/reserve-locker?station_id=0&locker_id=0
 # Reservation Form Page (3)
 # select a charging station and reserve locker
 @bp.route('/reserve-locker', methods=['POST'])
@@ -79,8 +78,8 @@ def reserve_locker():
 
     match request.method:
         case 'POST':
-            cs_id = request.args.get("station_id", type=int)
-            locker_i = request.args.get("locker_id", type=int)
+            cs_id = int(request.form["station_id"])
+            locker_i = int(request.form["locker_id"])
             
             # find selected charging station object
             charger = None
@@ -118,30 +117,46 @@ def reserve_locker():
 # cancel reservation, lock/unlock locker
 @bp.route('/manage-locker', methods=['GET', 'POST'])
 def cancel_reservation():
-
     # check for account
     if not g.user:
         return redirect('/auth/login')
     user_id = g.user["ID"]
     
-    # check for reservation
-    if not g.locker:
-        return "No active reservation.", redirect('/view-available')
-    lckr = g.locker
+    match request.method:
+        case 'POST':
+            # check for reservation
+            db = get_db()
+            row = db.execute(f"SELECT rowid, * FROM APPUSER WHERE rowid = {user_id}").fetchone()
+            cs_id = int(row["RESERVED_CS_ID"])
+            locker_i = int(row["RESERVED_CS_SPACE_I"])
+            
+            if cs_id is None or locker_i is None:
+                return "No active reservation", redirect(url_for("user_view.view-available"))
+            
+            lckr = None
+            for cs in connected_clients:
+                if cs_id != cs.id:
+                    continue
+                if locker_i >= len(cs.locker_list):
+                    return "Locker index out of range", redirect(url_for("user_view.view-available"))
+                lckr = cs.locker_list[locker_i]
+            if not lckr:
+                return "Could not find locker", redirect(url_for("user_view.view-available"))
     
-    # end reservation
-    lckr.unreserve()
-    g.locker = None
+            # end reservation
+            lckr.unreserve()
 
-    db = get_db()
-    db.execute(
-        f"UPDATE APPUSER "
-        f"SET RESERVED_CS_ID = NULL, "
-            f"RESERVED_CS_SPACE_I = NULL "
-       f"WHERE ID = {user_id}"
-    )
+            db = get_db()
+            db.execute(
+                f"UPDATE APPUSER "
+                f"SET RESERVED_CS_ID = NULL, "
+                    f"RESERVED_CS_SPACE_I = NULL "
+            f"WHERE ID = {user_id}"
+            )
 
-    return redirect('/home')
+            return redirect('/home')
+        case _:
+            return "Bad Request", 400
 
 def lock_locker():
     lckr = g.locker
