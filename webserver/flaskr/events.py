@@ -101,6 +101,8 @@ class Locker:
         
         # TODO: notifications (should be done where this function is called from)
         # To provide more context as to why the locker was unreserved
+    
+    # TODO: Add lock and unlock methods and move emits to those methods
 
 connected_clients: "list[ChargingStation]" = []
 

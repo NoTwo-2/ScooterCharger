@@ -54,6 +54,7 @@ def show_available_lockers():
                 locker = cs.locker_list[i]
                 if locker.is_reserved:
                     continue
+                # TODO: check if locker is under maintenence (state)
                 
                 avail_lckr.append({
                     "locker_id": i,
@@ -66,51 +67,51 @@ def show_available_lockers():
 
     return {"available_lockers" : avail_lckr}
 
-
+# http://localhost:5000/reserve-locker?station_id=0&locker_id=0
 # Reservation Form Page (3)
 # select a charging station and reserve locker
-@bp.route('/reserve-locker/<cs_id>', methods=['GET', 'POST'])
-def reserve_locker(cs_id):
-
+@bp.route('/reserve-locker', methods=['POST'])
+def reserve_locker():
     # check for account
     if not g.user:
         return redirect('/auth/login')
     user_id = g.user["ID"]
 
-    # find selected charging station object
-    charger = None
-    for client in connected_clients:
-        if cs_id == client.id:
-            charger = client
-            break
+    match request.method:
+        case 'POST':
+            cs_id = request.args.get("station_id", type=int)
+            locker_i = request.args.get("locker_id", type=int)
+            
+            # find selected charging station object
+            charger = None
+            for client in connected_clients:
+                if cs_id == client.id:
+                    charger = client
+                    break
 
-    if not charger or not charger.locker_list:
-        return "Charging Station not found.", redirect('/view-available')
+            if not charger or not charger.locker_list:
+                return "Charging Station not found.", redirect('/view-available')
 
-    # find available locker
-    lckr = None
-    full = True
-    for box in charger.locker_list:
-        if not box.is_reserved:
-            full = False
-            lckr = box
-    if full:
-        return "Charging Station full.", redirect('/view-available')
+            # find available locker
+            lckr: Locker = charger.locker_list[locker_i]
+            if lckr.is_reserved or (lckr.status["state"] != "unlocked"):
+                return "Locker is unavailable.", redirect('/view-available')
     
-    # start reservation
-    reserve_time = request.form['reserve_time']
-    lckr.reserve(reserve_time)
-    g.locker = lckr
+            # start reservation
+            reserve_time = 120
+            lckr.reserve(reserve_time)
 
-    db = get_db()
-    db.execute(
-        f"UPDATE APPUSER "
-        f"SET RESERVED_CS_ID = {cs_id}, "
-            f"RESERVED_CS_SPACE_I = {lckr.get_index()} "
-        f"WHERE ID = {user_id}"
-    )
+            db = get_db()
+            db.execute(
+                f"UPDATE APPUSER "
+                f"SET RESERVED_CS_ID = {cs_id}, "
+                    f"RESERVED_CS_SPACE_I = {lckr.get_index()} "
+                f"WHERE ID = {user_id}"
+            )
 
-    return redirect('/manage-locker')
+            return redirect('/manage-locker')
+        case _:
+            return "Bad Request", 400
 
 
 # Reservation Management Page (4)
