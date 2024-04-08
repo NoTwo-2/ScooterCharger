@@ -77,6 +77,9 @@ def login():
             # JWT REPLACEMENT!
             session.clear()
             session[USER_ID_COOKIE] = user['rowid']
+            # if user is admin
+            if user['ACCESS_TYPE'] == "ADMIN":
+                return redirect(url_for("admin.home"))
             return redirect(url_for("user_view.home"))
         case 'GET':
             return render_template("auth/login.html")

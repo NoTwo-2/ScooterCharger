@@ -32,6 +32,8 @@ def create_app() -> Flask:
     app.register_blueprint(auth.bp)
     from . import user_view
     app.register_blueprint(user_view.bp)
+    from . import admin
+    app.register_blueprint(admin.bp)
 
     @app.route("/")
     def route_to_home():
