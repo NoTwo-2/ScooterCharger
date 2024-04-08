@@ -2,6 +2,7 @@ from flask import Flask, Blueprint, request, g, session, redirect, url_for, rend
 
 from .events import connected_clients, Locker, ChargingStation
 # from .auth import load_user
+from sqlite3 import Connection
 from flaskr.sqlite_db import get_db
 
 bp = Blueprint('user_view', __name__)
@@ -78,6 +79,13 @@ def reserve_locker():
 
     match request.method:
         case 'POST':
+            # check for existing reservation
+            db = get_db()
+            cs_id, locker_i = get_locker_reserved(db, user_id)
+            
+            if not (cs_id is None) or not (locker_i is None):
+                return redirect('/manage-locker')
+            
             cs_id = int(request.form["station_id"])
             locker_i = int(request.form["locker_id"])
             
@@ -98,7 +106,7 @@ def reserve_locker():
             
             # start reservation
             reserve_time = 120
-            lckr.reserve(reserve_time)
+            lckr.reserve(user_id, reserve_time)
 
             db = get_db()
             db.execute(
@@ -121,41 +129,53 @@ def cancel_reservation():
     if not g.user:
         return redirect('/auth/login')
     user_id = g.user["rowid"]
+    
+    # check for active reservation
+    db = get_db()
+    cs_id, locker_i = get_locker_reserved(db, user_id)
+    if cs_id is None or locker_i is None:
+        return redirect(url_for("user_view.view-available")) #"No active reservation"
+    
     match request.method:
         case 'POST':
-            # check for reservation
-            db = get_db()
-            row = db.execute(f"SELECT rowid, * FROM APPUSER WHERE rowid = {user_id}").fetchone()
-            cs_id = int(row["RESERVED_CS_ID"])
-            locker_i = int(row["RESERVED_CS_SPACE_I"])
+            # get action item
+            action = request.form["action"]
             
-            if cs_id is None or locker_i is None:
-                return redirect(url_for("user_view.view-available")) #"No active reservation", 
-            
+            # get locker
             lckr = None
             for cs in connected_clients:
                 if cs_id != cs.id:
                     continue
                 if locker_i >= len(cs.locker_list):
-                    return redirect(url_for("user_view.view-available")) #"Locker index out of range",
+                    break
                 lckr = cs.locker_list[locker_i]
             if not lckr:
                 return redirect(url_for("user_view.view-available")) # "Could not find locker", 
-    
-            # end reservation
-            lckr.unreserve()
 
-            db = get_db()
-            db.execute(
-                f"UPDATE APPUSER "
-                f"SET RESERVED_CS_ID = NULL, "
-                    f"RESERVED_CS_SPACE_I = NULL "
-            f"WHERE rowid = {user_id}"
-            )
-            db.commit()
+            # Deal with action
+            match action:
+                case 'toggle-lock':
+                    if lckr.res_locked:
+                        lckr.unlock()
+                    else:
+                        lckr.lock()
+                case 'unreserve':
+                    lckr.unreserve()
+
+                    db = get_db()
+                    db.execute(
+                        f"UPDATE APPUSER "
+                        f"SET RESERVED_CS_ID = NULL, "
+                        f"RESERVED_CS_SPACE_I = NULL "
+                        f"WHERE rowid = {user_id}"
+                    )
+                    db.commit()
+                case _:
+                    return redirect('/home') # "Invalid action"
             
             return redirect('/home')
         case 'GET':
+            # TODO: Display the actual status of the locker's state
             return render_template('auth/manage_locker.html')
         case _:
             return "Bad Request", 400
@@ -169,3 +189,21 @@ def unlock_locker():
     lckr = g.locker
     #lckr.unlock()
     return f"Locker {lckr.get_index()} is unlocked."
+
+def get_locker_reserved(db: Connection, user_id: int) -> tuple[int, int]:
+    '''
+    Takes in a database and a user's ID and returns the station ID and the locker index.
+    Returns None if the user has no locker reserved
+    '''
+    row = db.execute(f"SELECT rowid, * FROM APPUSER WHERE rowid = {user_id}").fetchone()
+    cs_id = row["RESERVED_CS_ID"]
+    locker_i = row["RESERVED_CS_SPACE_I"]
+    
+    if cs_id is None or locker_i is None:
+        return None
+    
+    # convert to int
+    cs_id = int(cs_id)
+    locker_i = int(locker_i)
+    
+    return (cs_id, locker_i)
