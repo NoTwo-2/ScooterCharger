@@ -5,6 +5,11 @@ import sqlite3
 import click
 from flask import current_app, g, Flask
 
+from werkzeug.security import generate_password_hash
+
+ADMIN_EMAIL = "admin"
+ADMIN_PASSWORD = "admin"
+
 def get_db():
     '''
     Stores a new db connection in g if one is not present
@@ -37,7 +42,12 @@ def init_db():
     
     with current_app.open_resource('schema.sql') as f:
         db.executescript(f.read().decode('utf8'))
-    # TODO: create an admin user for the future
+    
+    db.execute(
+        f"INSERT INTO APPUSER (ACCESS_TYPE, EMAIL, PASSKEY) " +
+        f"VALUES('ADMIN', '{ADMIN_EMAIL}', '{generate_password_hash(ADMIN_PASSWORD)}')"
+    )
+    db.commit()
 
 @click.command('init-db')
 def init_db_command():

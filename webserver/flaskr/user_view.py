@@ -8,7 +8,6 @@ from flaskr.sqlite_db import get_db
 bp = Blueprint('user_view', __name__)
 
 # Place any user-accessible locker routes here
-# None of these should return rendered templates
 
 # User Landing Page (1)
 # redirect to manage reservation if user has active reservation
@@ -22,7 +21,6 @@ def home():
     if not g.user["RESERVED_CS_SPACE_I"]:
         return redirect('/view-available')
 
-    active_res = g.user["RESERVED_CS_SPACE_I"]
     return redirect('/manage-locker')
 
 
