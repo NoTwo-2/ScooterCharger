@@ -180,16 +180,6 @@ def cancel_reservation():
         case _:
             return "Bad Request", 400
 
-def lock_locker():
-    lckr = g.locker
-    # lckr.lock()
-    return f"Locker {lckr.get_index()} is locked."
-
-def unlock_locker():
-    lckr = g.locker
-    #lckr.unlock()
-    return f"Locker {lckr.get_index()} is unlocked."
-
 def get_locker_reserved(db: Connection, user_id: int) -> tuple[int, int]:
     '''
     Takes in a database and a user's ID and returns the station ID and the locker index.

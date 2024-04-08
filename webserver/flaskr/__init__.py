@@ -34,7 +34,7 @@ def create_app() -> Flask:
     app.register_blueprint(user_view.bp)
 
     @app.route("/")
-    def route_to_auth():
-        return redirect(url_for("auth.login"))
+    def route_to_home():
+        return redirect("/home")
     
     return app
