@@ -51,6 +51,7 @@ class ChargingStation:
             self.locker_list.append(new_locker)
             
             new_locker.unreserve()
+            new_locker.lock()
 
 class Locker:
     def __init__(
@@ -60,6 +61,7 @@ class Locker:
         self.parent_station = parent_station
         
         self.is_reserved: bool = False
+        self.res_locked: bool = False
         self.reserve_duration: int = None # In minutes
         self.last_res_time: datetime = None
         
@@ -76,16 +78,11 @@ class Locker:
         Assigns this locker to the ID of the user passed
         Returns true if the locker was reserved, false otherwise
         '''
-        if self.is_reserved or self.status["state"] != "unlocked":
+        if self.is_reserved:
             return False
         self.is_reserved = True
         self.reserve_duration = reserve_duration
         self.last_res_time = datetime.now()
-        
-        socketio.emit("lock", {
-            "index" : self.get_index()
-        }, to=self.parent_station.client_sid)
-        print(f"SERVER - Sent lock command to SID: {self.parent_station.client_sid}, LID: {self.parent_station.id}")
     
     def unreserve(self) -> None:
         '''
@@ -93,16 +90,31 @@ class Locker:
         '''
         self.is_reserved = False
         self.reserve_duration = None
-        
+
+        # TODO: notifications (should be done where this function is called from)
+        # To provide more context as to why the locker was unreserved
+    
+    def lock(self) -> None:
+        '''
+        Sends a lock SocketIO event to the connected charging station.
+        Changes res_locked to True
+        '''
+        self.res_locked = True
+        socketio.emit("lock", {
+            "index" : self.get_index()
+        }, to=self.parent_station.client_sid)
+        print(f"SERVER - Sent lock command to SID: {self.parent_station.client_sid}, LID: {self.parent_station.id}")
+    
+    def unlock(self) -> None:
+        '''
+        Sends an unlock SocketIO event to the connected charging station
+        Changes res_locked to False
+        '''
+        self.res_locked = False
         socketio.emit("unlock", {
             "index" : self.get_index()
         }, to=self.parent_station.client_sid)
         print(f"SERVER - Sent unlock command to SID: {self.parent_station.client_sid}, LID: {self.parent_station.id}")
-        
-        # TODO: notifications (should be done where this function is called from)
-        # To provide more context as to why the locker was unreserved
-    
-    # TODO: Add lock and unlock methods and move emits to those methods
 
 connected_clients: "list[ChargingStation]" = []
 
@@ -215,49 +227,3 @@ def handle_json(json):
     # TODO: check for expired reservation
     
     print(charging_station)
-
-# TODO: remove this
-@socketio.on("locked")
-def handle_locked(json):
-    charging_station = resolve_sid(request.sid)
-    if charging_station.id is None:
-        print(f"SID: {request.sid} - Client has not initialized!")
-        disconnect()
-        return
-    
-    # Check for incorrect json
-    if not ("locker_i" in json):
-        print(f"SID: {request.sid}, CSID: {charging_station.id} - Sent locked with missing information")
-        return
-    
-    locker_i = int(json["locker_i"])
-    locker = charging_station.locker_list[locker_i]
-    
-    # Set all relevant reservation member variables
-    current_datetime = datetime.now()
-    locker.is_reserved = True
-    locker.last_res_time = current_datetime
-    print(f"SID: {request.sid}, CSID: {charging_station.id} - Locked locker {locker}")
-
-# TODO: remove this
-@socketio.on("unlocked")
-def handle_unlocked(json):
-    charging_station = resolve_sid(request.sid)
-    if charging_station.id is None:
-        print(f"SID: {request.sid} - Client has not initialized!")
-        disconnect()
-        return
-    
-    # Check for incorrect json
-    if not ("locker_i" in json):
-        print(f"SID: {request.sid}, LID: {charging_station.id} - Sent unocked with missing information")
-        return
-    
-    locker_i= int(json["locker_i"])
-    locker = charging_station.locker_list[locker_i]
-    
-    # Set all relecant unreservation member variables
-    locker.is_reserved = False
-    locker.reserve_duration = None
-    
-    print(f"SID: {request.sid}, CSID: {charging_station.id} - Unocked locker {locker_i}")
