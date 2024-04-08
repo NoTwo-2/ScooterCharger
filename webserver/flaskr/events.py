@@ -51,7 +51,7 @@ class ChargingStation:
             self.locker_list.append(new_locker)
             
             new_locker.unreserve()
-            new_locker.lock()
+            new_locker.unlock()
 
 class Locker:
     def __init__(
@@ -62,6 +62,7 @@ class Locker:
         
         self.is_reserved: bool = False
         self.res_locked: bool = False
+        self.reserver_id: int = None
         self.reserve_duration: int = None # In minutes
         self.last_res_time: datetime = None
         
@@ -73,7 +74,7 @@ class Locker:
         '''
         return self.parent_station.locker_list.index(self)
     
-    def reserve(self, reserve_duration: int) -> bool:
+    def reserve(self, user_id: int, reserve_duration: int) -> bool:
         '''
         Assigns this locker to the ID of the user passed
         Returns true if the locker was reserved, false otherwise
@@ -81,6 +82,7 @@ class Locker:
         if self.is_reserved:
             return False
         self.is_reserved = True
+        self.reserver_id = user_id
         self.reserve_duration = reserve_duration
         self.last_res_time = datetime.now()
     
@@ -89,7 +91,10 @@ class Locker:
         Unassigns this locker space
         '''
         self.is_reserved = False
+        self.reserver_id = None
         self.reserve_duration = None
+        
+        self.unlock()
 
         # TODO: notifications (should be done where this function is called from)
         # To provide more context as to why the locker was unreserved
@@ -130,6 +135,25 @@ def resolve_sid(sid: str) -> ChargingStation:
         if client.client_sid == sid:
             return client
     return None
+
+def handle_reservation(locker: Locker) -> None:
+    '''
+    Determines whether the current reservation on a locker is still valid.
+    Sends notifications and terminates the reservation depending on time left
+    '''
+    # check for reservation
+    if not locker.is_reserved:
+        return
+    current_datetime = datetime.now()
+    elapsed_time = current_datetime - locker.last_res_time
+    minutes_left = locker.reserve_duration - int(elapsed_time.seconds / 60)
+    
+    # TODO: Send notification to user if time is almost up
+    
+    # terminate reservation
+    if minutes_left <= 0:
+        # TODO: Send notification of termination of reservation
+        locker.unreserve()
 
 ################
 # EVENT HANDLERS
@@ -223,7 +247,8 @@ def handle_json(json):
     for i in range(len(locker_list)):
         locker = charging_station.locker_list[i]
         locker.status = locker_list[i]
-    
-    # TODO: check for expired reservation
+        
+        # TODO: check for expired reservation
+        handle_reservation(locker)
     
     print(charging_station)
