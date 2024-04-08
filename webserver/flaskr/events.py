@@ -76,7 +76,7 @@ class Locker:
         Assigns this locker to the ID of the user passed
         Returns true if the locker was reserved, false otherwise
         '''
-        if not self.is_reserved or self.status["state"] != "unlocked":
+        if self.is_reserved or self.status["state"] != "unlocked":
             return False
         self.is_reserved = True
         self.reserve_duration = reserve_duration

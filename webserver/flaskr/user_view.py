@@ -87,14 +87,15 @@ def reserve_locker():
                 if cs_id == client.id:
                     charger = client
                     break
-
+            
             if not charger or not charger.locker_list:
-                flash("Charging station not found")
+                # TODO: FLASH error messages on redirect
+                return redirect('/view-available')
             # find available locker
             lckr: Locker = charger.locker_list[locker_i]
             if lckr.is_reserved or (lckr.status["state"] != "unlocked"):
-                flash("Locker is unavailable")
-    
+                return redirect('/view-available')
+            
             # start reservation
             reserve_time = 120
             lckr.reserve(reserve_time)
