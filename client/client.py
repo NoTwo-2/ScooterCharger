@@ -2,7 +2,7 @@ import socketio
 from datetime import datetime
 import time, os
 
-from config import server_url
+from config import server_url, locker_num
 
 # TODO: order IO devices so that they can be accessed via a locker index
 def find_temp_sensors():
@@ -21,7 +21,7 @@ def read_temp(sensor_num):
 sio = socketio.Client()
 
 # TODO: Initialize this list according to how many IO devices are present (is there an automatic way to figure this out via code?)
-lockers = [{"state": "unlocked", "temperature": 0, "current": 0}, {"state": "OFF", "temperature": 0, "current": 0}]
+lockers = [{"state": "unlocked", "temperature": 0, "current": 0} for x in range(locker_num)]
 initialized = False
 
 @sio.event
