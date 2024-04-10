@@ -20,10 +20,12 @@
       {% else %}
       <h2>Cancel Reservation</h2>
       <form method="post" action="{{ url_for('user_view.cancel_reservation') }}">
+        <input type="hidden" name="action" value="unreserve">  <!-- Specify the action -->
         <button type="submit">Cancel Reservation</button>
       </form>
       <h2>Lock/Unlock Locker</h2>
       <form method="post" action="/manage-locker">
+        <input type="hidden" name="action" value="toggle-lock"> 
         <button type="submit">Lock/Unlock Locker</button>
       </form>
       {% endif %}

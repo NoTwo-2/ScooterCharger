@@ -17,18 +17,25 @@ def home():
     # check for account
     if not g.user:
         return redirect('/auth/login')
-    
-    if not g.user["RESERVED_CS_SPACE_I"]:
-        return redirect('/view-available')
-
+    print("RES SPACE I USER: ", g.user["RESERVED_CS_SPACE_I"]) 
+    reserved_space = g.user["RESERVED_CS_SPACE_I"]
+    if reserved_space is None:
+        return redirect('/view-charging-stations')
     return redirect('/manage-locker')
 
+@bp.route('/view-charging-stations')
+def view_charging_stations():
+    # Fetch the list of Charging Stations from the database
+    db = get_db()
+    charging_stations = db.execute(f"SELECT rowid, * FROM CHARGING_STATION").fetchall()
+    
+    return render_template('auth/view_chargingstations.html', charging_stations=charging_stations) 
 
 # Lockers Page (2)
 # show charging stations with available lockers and location
 @bp.route('/view-available')
 def show_available_lockers():
-
+    station_id = request.args.get('station_id')
     # list of dictionaries (cs table + num_lockers)
     avail_lckr: "list[dict]" = []
 
@@ -46,6 +53,7 @@ def show_available_lockers():
     # put location and num_locker into dictionary
     for cs in avail:
         for row in records:
+            print("cs.id: ",cs.id, "station id: ", station_id, "row ud: ",row[0])
             if cs.id != row[0]:
                 continue
             
@@ -54,14 +62,14 @@ def show_available_lockers():
                 if locker.is_reserved:
                     continue
                 # TODO: check if locker is under maintenence (state)
-                
-                avail_lckr.append({
-                    "locker_id": i,
-                    "cs_id": row[0],
-                    "cs_name": row[1],
-                    "cs_gmap_link": row[2],
-                    "cs_address": row[3]
-                })
+                if int(station_id) == cs.id:
+                    avail_lckr.append({
+                        "locker_id": i,
+                        "cs_id": row[0],
+                        "cs_name": row[1],
+                        "cs_gmap_link": row[2],
+                        "cs_address": row[3]
+                    })
             break
 
     return render_template('auth/view_available.html', lockers=avail_lckr) 
@@ -79,33 +87,28 @@ def reserve_locker():
         case 'POST':
             # check for existing reservation
             db = get_db()
-            cs_id, locker_i = get_locker_reserved(db, user_id)
-            
-            if not (cs_id is None) or not (locker_i is None):
+            result = get_locker_reserved(db, user_id)
+            print(result)
+            if result is not None:
                 return redirect('/manage-locker')
-            
             cs_id = int(request.form["station_id"])
             locker_i = int(request.form["locker_id"])
-            
             # find selected charging station object
             charger = None
             for client in connected_clients:
                 if cs_id == client.id:
                     charger = client
                     break
-            
             if not charger or not charger.locker_list:
-                # TODO: FLASH error messages on redirect
-                return redirect('/view-available')
+                #TODO: FLASH error messages on redirect
+                return redirect('/view-charging-stations')
             # find available locker
             lckr: Locker = charger.locker_list[locker_i]
             if lckr.is_reserved or (lckr.status["state"] != "unlocked"):
-                return redirect('/view-available')
-            
+                return redirect('/view-charging-stations')
             # start reservation
             reserve_time = 120
             lckr.reserve(user_id, reserve_time)
-
             db = get_db()
             db.execute(
                 f"UPDATE APPUSER "
@@ -124,20 +127,22 @@ def reserve_locker():
 @bp.route('/manage-locker', methods=['GET', 'POST'])
 def cancel_reservation():
     # check for account
+    print("HIII")
     if not g.user:
         return redirect('/auth/login')
     user_id = g.user["rowid"]
     
     # check for active reservation
     db = get_db()
-    cs_id, locker_i = get_locker_reserved(db, user_id)
-    if cs_id is None or locker_i is None:
-        return redirect(url_for("user_view.view-available")) #"No active reservation"
+    result = get_locker_reserved(db, user_id)
+    if result is None:
+        return redirect(url_for("user_view.show_available_lockers")) #"No active reservation"
+    cs_id, locker_i = result
     
     match request.method:
         case 'POST':
             # get action item
-            action = request.form["action"]
+            action = request.form.get("action")
             
             # get locker
             lckr = None
@@ -148,7 +153,7 @@ def cancel_reservation():
                     break
                 lckr = cs.locker_list[locker_i]
             if not lckr:
-                return redirect(url_for("user_view.view-available")) # "Could not find locker", 
+                return redirect(url_for("user_view.show_available_lockers")) # "Could not find locker", 
 
             # Deal with action
             match action:
@@ -157,9 +162,9 @@ def cancel_reservation():
                         lckr.unlock()
                     else:
                         lckr.lock()
+                    return redirect('/manage-locker')
                 case 'unreserve':
                     lckr.unreserve()
-
                     db = get_db()
                     db.execute(
                         f"UPDATE APPUSER "
@@ -168,10 +173,10 @@ def cancel_reservation():
                         f"WHERE rowid = {user_id}"
                     )
                     db.commit()
+                    return redirect('/home')
                 case _:
                     return redirect('/home') # "Invalid action"
             
-            return redirect('/home')
         case 'GET':
             # TODO: Display the actual status of the locker's state
             return render_template('auth/manage_locker.html')
