@@ -12,18 +12,18 @@
   <div class="landing-page-container">
     <div class="form-container">
       <form method="post" class="form1">
-        <h1>Available Lockers</h1>
+        <h1>Current Station: {{ station_name }}</h1>
       </form>
       <div class="locker-container">
         {% for locker in lockers %}
         <form method="post" action="/reserve-locker">
-          <input type="hidden" name="station_id" value="{{ locker.cs_id }}">
+          <input type="hidden" name="station_id" value="{{ station_id }}">
           <input type="hidden" name="locker_id" value="{{ locker.locker_id }}">
           <div class="locker" onclick="this.parentNode.submit()">
+            <div style="font-weight: bold;">Locker {{ locker.locker_id }}</div>
+            <hr>
             <img src="../../static/images/Locker_logo2.png">
-            <h2>Locker {{ locker.locker_id }}</h2>
-            <p>Charging Station: {{ locker.cs_name }}</p>
-            <p>Address: {{ locker.cs_address }}</p>
+            <div style="font-weight: bold;">Reserve?</div>
           </div>
         </form>
         {% endfor %}

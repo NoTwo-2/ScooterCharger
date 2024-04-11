@@ -111,6 +111,7 @@ body {
 .locker-container {
   display: flex;
   flex-direction: column; /* Change to column to stack lockers vertically */
+  column-count: 2;
   align-items: center; /* Center lockers horizontally */
   margin-top: 20px; /* Add margin to separate lockers from title */
 }

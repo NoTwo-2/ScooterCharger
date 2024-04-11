@@ -57,46 +57,34 @@ def view_charging_stations():
 
 # Lockers Page (2)
 # show charging stations with available lockers and location
-@bp.route('/view-available')
+@bp.route('/view-lockers')
 def show_available_lockers():
-    station_id = request.args.get('station_id')
+    station_id = int(request.args.get('station_id'))
     # list of dictionaries (cs table + num_lockers)
     avail_lckr: "list[dict]" = []
 
-    # list of ChargingStation objects
-    avail: "list[ChargingStation]" = []
-
-    # add cs with available lockers to avail list with num_lockers
-    for cs in connected_clients:
-        avail.append(cs)
-
     # get cs table data
     db = get_db()
-    records = db.execute(f"SELECT rowid, * FROM CHARGING_STATION").fetchall()
+    charging_station = db.execute(f"SELECT rowid, * FROM CHARGING_STATION WHERE rowid = {station_id}").fetchone()
 
-    # put location and num_locker into dictionary
-    for cs in avail:
-        for row in records:
-            print("cs.id: ",cs.id, "station id: ", station_id, "row ud: ",row[0])
-            if cs.id != row[0]:
-                continue
-            
-            for i in range(len(cs.locker_list)):
-                locker = cs.locker_list[i]
-                if locker.is_reserved:
-                    continue
-                # TODO: check if locker is under maintenence (state)
-                if int(station_id) == cs.id:
-                    avail_lckr.append({
-                        "locker_id": i,
-                        "cs_id": row[0],
-                        "cs_name": row[1],
-                        "cs_gmap_link": row[2],
-                        "cs_address": row[3]
-                    })
-            break
+    # get charging station object
+    cs: ChargingStation = None
+    for client in connected_clients:
+        if client.id == station_id:
+            cs = client
+    
+    if cs is None:
+        return "Bad Request", 400
+    
+    # construct locker dicts
+    for locker in cs.locker_list:
+        if locker.is_reserved:
+            continue
+        lckr = {}
+        lckr['locker_id'] = cs.locker_list.index(locker)
+        avail_lckr.append(lckr)
 
-    return render_template('auth/view_available.html', lockers=avail_lckr) 
+    return render_template('auth/view_available.html', lockers=avail_lckr, station_name=charging_station["CS_NAME"], station_id=station_id) 
 
 # Reservation Form Page (3)
 # select a charging station and reserve locker
