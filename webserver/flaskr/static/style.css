@@ -37,8 +37,47 @@ body {
   border-radius: 0;
 }
 
+.form-container form input[type=submit] {
+  font-size: 20px;
+  background-color: #72BF44;
+  border-color: #003B49;
+  cursor: pointer;
+}
+
 /* =============================================================================
- * LANDING PAGE STYLING
+ * CHARGING STATION LIST PAGE STYLING
+ * =============================================================================
+*/
+
+.station-container {
+  display: flex;
+  flex-direction: column; /* Change to column to stack stations vertically */
+  align-items: center; /* Center lockers horizontally */
+  margin-top: 20px; /* Add margin to separate lockers from title */
+}
+
+.station {
+  padding: 20px;
+  border: 1px solid #ccc;
+  text-align: left;
+  font-size: larger;
+  transition: background-color 0.3s ease-in-out;
+  margin-bottom: 10px; /* Add margin between lockers */
+  width: 85%;
+}
+
+.station-contents {
+  display: none;
+  font-size: medium;
+}
+
+.station:hover {
+  background-color: #f0f0f0;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+}
+
+/* =============================================================================
+ * LOCKER LIST PAGE STYLING
  * =============================================================================
 */
 

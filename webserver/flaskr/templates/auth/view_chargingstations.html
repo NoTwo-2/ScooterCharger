@@ -14,16 +14,24 @@
       <form method="post" class="form1">
         <h1>Charging Stations</h1>
       </form>
-      <div class="locker-container">
+      <div class="station-container">
         {% for station in charging_stations %}
-        <form method="GET" action="{{ url_for('user_view.show_available_lockers') }}">
-            <input type="hidden" name="station_id" value="{{ station[0] }}">
-            <div class="locker" onclick="this.parentNode.submit()">
-                <img src="../../static/images/electric-vehicle-charging-station-icon-in-gradient-colors-png.png">
-                <h1>Station: {{ station['cs_name'] }}</h1>
-                <p>Address:  </p>
-            </div>
-        </form>
+        <div class="station" onclick="this.lastElementChild.style.display = 'block'">
+          <div style="display: flex; flex-direction:column;">
+            <div>{{ station['CS_NAME'] }}</div>
+            <div style="margin-left:auto; margin-right:0; font-size:medium">Lockers Available: {{ station['locker_num'] }}</div>
+          </div>
+          <div class="station-contents">
+            <hr>
+            <div>Address: {{ station['CS_ADDRESS'] }}</div>
+            <button style="margin-bottom: 5px;">Show in Google Maps</button>
+            <form method="GET" action="{{ url_for('user_view.show_available_lockers') }}" style="display:flex">
+              <input type="hidden" name="station_id" value="{{ station['rowid'] }}">
+              <input type="submit" value="View Lockers" style="margin-left:auto; margin-right:0">
+            </form>
+          </div>
+        </div>
+        
         {% endfor %}
       </div>
     </div>

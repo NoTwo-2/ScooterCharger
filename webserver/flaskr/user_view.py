@@ -26,10 +26,34 @@ def home():
 @bp.route('/view-charging-stations')
 def view_charging_stations():
     # Fetch the list of Charging Stations from the database
-    db = get_db()
-    charging_stations = db.execute(f"SELECT rowid, * FROM CHARGING_STATION").fetchall()
+    stations = []
     
-    return render_template('auth/view_chargingstations.html', charging_stations=charging_stations) 
+    # get db data
+    db = get_db()
+    rows = db.execute(f"SELECT rowid, * FROM CHARGING_STATION").fetchall()
+    
+    # loop thru each connected client
+    for cs in connected_clients:
+        for row in rows:
+            if cs.id != row["rowid"]:
+                continue
+            
+            station = dict()
+            for key in row.keys():
+                if row[key] is None:
+                    station[key] = "None"
+                else:
+                    station[key] = row[key]
+                
+            locker_avail = 0
+            for locker in cs.locker_list:
+                if not locker.is_reserved: locker_avail += 1
+            station["locker_num"] = locker_avail
+        
+            stations.append(station)
+            break
+    
+    return render_template('auth/view_chargingstations.html', charging_stations=stations) 
 
 # Lockers Page (2)
 # show charging stations with available lockers and location
