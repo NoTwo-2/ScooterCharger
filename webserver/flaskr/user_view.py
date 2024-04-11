@@ -81,7 +81,7 @@ def show_available_lockers():
         if locker.is_reserved:
             continue
         lckr = {}
-        lckr['locker_id'] = cs.locker_list.index(locker)
+        lckr['locker_id'] = locker.get_index()
         avail_lckr.append(lckr)
 
     return render_template('auth/view_available.html', lockers=avail_lckr, station_name=charging_station["CS_NAME"], station_id=station_id) 
@@ -137,9 +137,8 @@ def reserve_locker():
 # Reservation Management Page (4)
 # cancel reservation, lock/unlock locker
 @bp.route('/manage-locker', methods=['GET', 'POST'])
-def cancel_reservation():
+def manage_reservation():
     # check for account
-    print("HIII")
     if not g.user:
         return redirect('/auth/login')
     user_id = g.user["rowid"]
@@ -148,7 +147,7 @@ def cancel_reservation():
     db = get_db()
     result = get_locker_reserved(db, user_id)
     if result is None:
-        return redirect(url_for("user_view.show_available_lockers")) #"No active reservation"
+        return redirect(url_for("user_view.view_charging_stations")) #"No active reservation"
     cs_id, locker_i = result
     
     match request.method:
@@ -190,8 +189,27 @@ def cancel_reservation():
                     return redirect('/home') # "Invalid action"
             
         case 'GET':
-            # TODO: Display the actual status of the locker's state
-            return render_template('auth/manage_locker.html')
+            charging_station = db.execute(f"SELECT rowid, * FROM CHARGING_STATION WHERE rowid = {cs_id}").fetchone()
+            print(cs_id, locker_i)
+            lckr: Locker = None
+            for client in connected_clients:
+                print(client.id)
+                if client.id != cs_id:
+                    continue
+                print("BOOM")
+                for locker in client.locker_list:
+                    print(locker.get_index())
+                    if locker.get_index() == locker_i:
+                        print("BOOM")
+                        lckr = locker
+            
+            return render_template(
+                'auth/manage_locker.html', 
+                charging_station=charging_station, 
+                locker_id=locker_i, 
+                state=lckr.status["state"], 
+                end_time=lckr.get_res_end().strftime("%a, %d at %I:%M:%S %p")
+            )
         case _:
             return "Bad Request", 400
 
