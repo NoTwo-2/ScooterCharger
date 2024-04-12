@@ -14,10 +14,6 @@ bp = Blueprint('user_view', __name__)
 #   else redirect to avaiolable lockers list
 @bp.route('/home', methods=['GET'])
 def home():
-    # check for account
-    if not g.user:
-        return redirect('/auth/login')
-    print("RES SPACE I USER: ", g.user["RESERVED_CS_SPACE_I"]) 
     reserved_space = g.user["RESERVED_CS_SPACE_I"]
     if reserved_space is None:
         return redirect('/view-charging-stations')
@@ -72,7 +68,11 @@ def view_charging_stations():
 # show charging stations with available lockers and location
 @bp.route('/view-lockers')
 def show_available_lockers():
-    station_id = int(request.args.get('station_id'))
+    station_id = request.args.get('station_id')
+    if station_id is None:
+        flash("Incomplete URL.")
+        return redirect(url_for("user_view.view_charging_stations"))
+    station_id = int(station_id)
     # list of dictionaries (cs table + num_lockers)
     avail_lckr: "list[dict]" = []
 
@@ -87,7 +87,8 @@ def show_available_lockers():
             cs = client
     
     if cs is None:
-        return "Bad Request", 400
+        flash("The charging station associated with this locker is no longer connected to the server.")
+        return redirect(url_for("user_view.view_charging_stations"))
     
     # construct locker dicts
     for locker in cs.locker_list:
@@ -114,7 +115,8 @@ def reserve_locker():
             db = get_db()
             result = get_locker_reserved(db, user_id)
             print(result)
-            if result is not None:
+            if not (result is None):
+                flash("You already have an existing reservation!")
                 return redirect('/manage-locker')
             cs_id = int(request.form["station_id"])
             locker_i = int(request.form["locker_id"])
@@ -125,11 +127,12 @@ def reserve_locker():
                     charger = client
                     break
             if not charger or not charger.locker_list:
-                #TODO: FLASH error messages on redirect
+                flash("Requested locker is no longer connected. Please try again.")
                 return redirect('/view-charging-stations')
             # find available locker
             lckr: Locker = charger.locker_list[locker_i]
             if lckr.is_reserved or (lckr.status["state"] != "unlocked"):
+                flash("Requested locker is no longer available. Please try again.")
                 return redirect('/view-charging-stations')
             # start reservation
             reserve_time = 120
@@ -142,25 +145,25 @@ def reserve_locker():
                 f"WHERE rowid = {user_id}"
             )
             db.commit()
+            flash("Locker successfully reserved!")
             return redirect('/manage-locker')
         case _:
-            return "Bad Request", 400
+            flash("???")
+            return redirect('/home') # "Invalid action"
 
 
 # Reservation Management Page (4)
 # cancel reservation, lock/unlock locker
 @bp.route('/manage-locker', methods=['GET', 'POST'])
 def manage_reservation():
-    # check for account
-    if not g.user:
-        return redirect('/auth/login')
     user_id = g.user["rowid"]
     
     # check for active reservation
     db = get_db()
     result = get_locker_reserved(db, user_id)
     if result is None:
-        return redirect(url_for("user_view.view_charging_stations")) #"No active reservation"
+        flash("No active reservation found.")
+        return redirect(url_for("user_view.view_charging_stations"))
     cs_id, locker_i = result
     
     match request.method:
@@ -177,7 +180,8 @@ def manage_reservation():
                     break
                 lckr = cs.locker_list[locker_i]
             if not lckr:
-                return redirect(url_for("user_view.show_available_lockers")) # "Could not find locker", 
+                flash("CRITICAL ERROR: Reserved locker is no longer connected to the server!")
+                return redirect(url_for("user_view.show_available_lockers"))
 
             # Deal with action
             match action:
@@ -186,6 +190,7 @@ def manage_reservation():
                         lckr.unlock()
                     else:
                         lckr.lock()
+                    flash("Sent lock command to locker.")
                     return redirect('/manage-locker')
                 case 'unreserve':
                     lckr.unreserve()
@@ -197,8 +202,10 @@ def manage_reservation():
                         f"WHERE rowid = {user_id}"
                     )
                     db.commit()
+                    flash("Successfully unreserved locker.")
                     return redirect('/home')
                 case _:
+                    flash("???")
                     return redirect('/home') # "Invalid action"
             
         case 'GET':
@@ -224,7 +231,8 @@ def manage_reservation():
                 end_time=lckr.get_res_end().strftime("%a, %d at %I:%M:%S %p")
             )
         case _:
-            return "Bad Request", 400
+            flash("???")
+            return redirect('/home') # "Invalid action"
 
 def get_locker_reserved(db: Connection, user_id: int) -> tuple[int, int]:
     '''
@@ -250,4 +258,5 @@ def filter_admin():
     Redirects if session user is not an admin
     '''
     if not g.user:
+        flash("Please login or create an account.")
         return redirect("/auth/login")

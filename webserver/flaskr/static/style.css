@@ -45,6 +45,29 @@ body {
   cursor: pointer;
 }
 
+@keyframes flash {
+  0%    {height: 60px; opacity: 1;}
+  50%   {height: 60px; opacity: 1;}
+  100%  {opacity: 0;}
+}
+
+.flash {
+  display: hidden;
+  opacity: 0;
+  position: fixed;
+  top: 0;
+  border-radius: 20px;
+  width: 100%;
+  height: 0px;
+  align-content: center;
+  text-align: center;
+  background-color: #ACA199;
+  font-size: larger;
+
+  animation-name: flash;
+  animation-duration: 4s;
+}
+
 /* =============================================================================
  * CHARGING STATION LIST PAGE STYLING
  * =============================================================================
