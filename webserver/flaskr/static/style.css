@@ -33,8 +33,9 @@ body {
 .form-container form input[type=text], input[type=password] {
   background: none;
   border: none;
-  border-bottom: 2px dashed black;
+  border-bottom: 2px dashed #003B49;
   border-radius: 0;
+  margin-bottom: 5px;
 }
 
 .form-container form input[type=submit] {

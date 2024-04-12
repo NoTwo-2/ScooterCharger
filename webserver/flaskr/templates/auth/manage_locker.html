@@ -11,14 +11,17 @@
 </style>
 <div class="landing-page-container">
   <div class="form-container">
-    <form method="post" class="form1">
+    <div style="display:flex; flex-direction:column; align-items:center;">
       <h1>Manage Reservation</h1>
       <h2>Station: {{ charging_station['CS_NAME'] }}</h2>
       <div>Address: {{ charging_station['CS_ADDRESS'] }}</div>
+      <button onclick="this.nextElementSibling.style.display = 'block'" style="margin-bottom: 5px;">Show in Google Maps</button>
+      <iframe src="{{ charging_station['CS_GMAPS_LINK'] }}&output=embed" width="100%" height="450" frameborder="0" style="border:0; display:none; margin-bottom:5px;" allow="fullscreen"></iframe>
       <h3>Locker ID: {{ locker_id }}</h3>
       <div>State: {{ state }}</div>
       <div>Reservation ends on {{ end_time }}</div>
-    </form>
+    </div>
+
     <div class="locker-container">
       {% if not g.user %}
       <p>Please login to manage your reservations.</p>

@@ -184,6 +184,7 @@ def handle_connect():
     connected_clients.append(new_station)
     print(f"SocketIO connection established with sid: {request.sid}")
 
+# TODO: handle id collisions and assignment edge cases
 @socketio.on("init")
 def handle_init(json):
     db = get_db()

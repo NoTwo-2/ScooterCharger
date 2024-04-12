@@ -26,34 +26,47 @@ def home():
 @bp.route('/view-charging-stations')
 def view_charging_stations():
     # Fetch the list of Charging Stations from the database
-    stations = []
+    online_stations = []
+    offline_stations = []
     
     # get db data
     db = get_db()
     rows = db.execute(f"SELECT rowid, * FROM CHARGING_STATION").fetchall()
     
-    # loop thru each connected client
-    for cs in connected_clients:
-        for row in rows:
+    admin = g.user["ACCESS_TYPE"] == "ADMIN"
+    
+    # loop thru each charging station in the db
+    for row in rows:
+        # transfer row data to new dict object
+        station = dict()
+        for key in row.keys():
+            station[key] = row[key]
+        
+        cc = False
+        # check for connected clients
+        for cs in connected_clients:
             if cs.id != row["rowid"]:
                 continue
-            
-            station = dict()
-            for key in row.keys():
-                if row[key] is None:
-                    station[key] = "None"
-                else:
-                    station[key] = row[key]
-                
+            # matching connected client
+            station["total_lockers"] = len(cs.locker_list)
             locker_avail = 0
             for locker in cs.locker_list:
                 if not locker.is_reserved: locker_avail += 1
             station["locker_num"] = locker_avail
-        
-            stations.append(station)
+            
+            online_stations.append(station)
+            cc = True
             break
+        # no connected clients
+        if not cc:
+            offline_stations.append(station)
     
-    return render_template('auth/view_chargingstations.html', charging_stations=stations) 
+    return render_template(
+        'auth/view_chargingstations.html', 
+        charging_stations=online_stations,
+        offline_stations=offline_stations, 
+        admin=admin
+    ) 
 
 # Lockers Page (2)
 # show charging stations with available lockers and location
@@ -230,3 +243,11 @@ def get_locker_reserved(db: Connection, user_id: int) -> tuple[int, int]:
     locker_i = int(locker_i)
     
     return (cs_id, locker_i)
+
+@bp.before_request
+def filter_admin():
+    '''
+    Redirects if session user is not an admin
+    '''
+    if not g.user:
+        return redirect("/auth/login")
