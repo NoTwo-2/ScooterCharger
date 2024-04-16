@@ -6,6 +6,8 @@ from flaskr.sqlite_db import get_db
 
 from datetime import datetime
 
+from .notifs import notify
+
 # TODO: Use .env or something similar to handle this
 SECRET = "dev"
 
@@ -149,10 +151,25 @@ def handle_reservation(locker: Locker) -> None:
     minutes_left = locker.reserve_duration - int(elapsed_time.seconds / 60)
     
     # TODO: Send notification to user if time is almost up
+    db = get_db()
+    user_email = db.execute(f"SELECT EMAIL FROM APPUSER WHERE rowid = {locker.reserver_id}").fetchone()
+    body = "Your reservation is ending soon. (Link to site)"
+
+    if minutes_left >= STATUS_RATE/60 and minutes_left < (STATUS_RATE/60)*2:
+        subject = "Locker reservation expires in less 10 minutes!"
+        notify(user_email, subject, body) == "sent"
+
+    elif minutes_left > 0 and minutes_left < STATUS_RATE/60:
+        subject = "Locker reservation expires in less 5 minutes!"
+        notify(user_email, subject, body)
     
     # terminate reservation
     if minutes_left <= 0:
         # TODO: Send notification of termination of reservation
+        subject = "Locker reservation has expired!"
+        body = "Your reservation has ended. (Link to site)"
+        notify(user_email, subject, body)
+
         locker.unreserve()
 
 ################
