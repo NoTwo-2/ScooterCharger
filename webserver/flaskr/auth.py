@@ -1,6 +1,6 @@
 # Serve registration and login pages here
 
-from flask import Blueprint, g, request, redirect, url_for, session, render_template
+from flask import Blueprint, g, request, redirect, url_for, session, render_template, flash
 
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -32,7 +32,8 @@ def register():
             password = request.form['password']
             
             if not access_type or not email or not password:
-                return "Bad Request", 400
+                flash("One or more required fields was not filled. Please try again.")
+                return redirect(url_for("auth.register"))
             if not (access_type in [at.name for at in AccessType]):
                 access_type = AccessType(0).name
             # TODO: Insert some sort of regex for email verification
@@ -45,8 +46,11 @@ def register():
                 )
                 db.commit()
             except db.IntegrityError:
-                return "Conflict", 409 # TODO: Maybe render registration page with a custom message here
+                flash("An account associated with this email already exists.")
+                return redirect(url_for("auth.register"))
             else:
+                # TODO: email verification
+                flash("Account successfully created!")
                 return redirect(url_for("auth.login"))
         case 'GET':
             return render_template("auth/register.html")
@@ -69,17 +73,21 @@ def login():
             
             user = db.execute(f"SELECT rowid, * FROM APPUSER WHERE EMAIL = '{email}'").fetchone()
             if user is None:
-                return "Bad Request", 400 # TODO: Maybe render login page with error message here
+                flash("Could not find an account associated with this email.")
+                return redirect(url_for("auth.login"))
             password_correct = check_password_hash(user['PASSKEY'], password)
             if not password_correct:
-                return "Bad Request", 400 # TODO: Maybe render login page with error message here
+                flash("Incorrect email or password.")
+                return redirect(url_for("auth.login"))
             
             # JWT REPLACEMENT!
             session.clear()
             session[USER_ID_COOKIE] = user['rowid']
             # if user is admin
             if user['ACCESS_TYPE'] == "ADMIN":
+                flash("Login successful! Welcome, admin user!")
                 return redirect(url_for("admin.home"))
+            flash("Login successful!")
             return redirect(url_for("user_view.home"))
         case 'GET':
             return render_template("auth/login.html")

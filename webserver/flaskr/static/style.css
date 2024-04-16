@@ -33,12 +33,75 @@ body {
 .form-container form input[type=text], input[type=password] {
   background: none;
   border: none;
-  border-bottom: 2px dashed black;
+  border-bottom: 2px dashed #003B49;
   border-radius: 0;
+  margin-bottom: 5px;
+}
+
+.form-container form input[type=submit] {
+  font-size: 20px;
+  background-color: #72BF44;
+  border-color: #003B49;
+  cursor: pointer;
+}
+
+@keyframes flash {
+  0%    {height: 60px; opacity: 1;}
+  50%   {height: 60px; opacity: 1;}
+  100%  {opacity: 0;}
+}
+
+.flash {
+  display: hidden;
+  opacity: 0;
+  position: fixed;
+  top: 0;
+  border-radius: 20px;
+  width: 100%;
+  height: 0px;
+  align-content: center;
+  text-align: center;
+  background-color: #ACA199;
+  font-size: larger;
+
+  animation-name: flash;
+  animation-duration: 4s;
 }
 
 /* =============================================================================
- * LANDING PAGE STYLING
+ * CHARGING STATION LIST PAGE STYLING
+ * =============================================================================
+*/
+
+.station-container {
+  display: flex;
+  flex-direction: column; /* Change to column to stack stations vertically */
+  align-items: center; /* Center lockers horizontally */
+  margin-top: 20px; /* Add margin to separate lockers from title */
+}
+
+.station {
+  padding: 20px;
+  border: 1px solid #ccc;
+  text-align: left;
+  font-size: larger;
+  transition: background-color 0.3s ease-in-out;
+  margin-bottom: 10px; /* Add margin between lockers */
+  width: 85%;
+}
+
+.station-contents {
+  display: none;
+  font-size: medium;
+}
+
+.station:hover {
+  background-color: #f0f0f0;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+}
+
+/* =============================================================================
+ * LOCKER LIST PAGE STYLING
  * =============================================================================
 */
 
@@ -72,6 +135,7 @@ body {
 .locker-container {
   display: flex;
   flex-direction: column; /* Change to column to stack lockers vertically */
+  column-count: 2;
   align-items: center; /* Center lockers horizontally */
   margin-top: 20px; /* Add margin to separate lockers from title */
 }
@@ -221,4 +285,3 @@ body {
   border-bottom: 2px dashed black;
   border-radius: 0;
 }
-

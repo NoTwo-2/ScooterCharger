@@ -4,7 +4,7 @@ from flask_socketio import SocketIO, emit, disconnect, send
 
 from flaskr.sqlite_db import get_db
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from .notifs import notify
 
@@ -75,6 +75,25 @@ class Locker:
         Gets index of this object in the ChargingStations's locker_list
         '''
         return self.parent_station.locker_list.index(self)
+    
+    def get_res_end(self) -> datetime:
+        '''
+        Returns datetime object containing when the reservation ends
+        Returns None if there is no current reservation
+        '''
+        if not self.is_reserved:
+            return None
+        return self.last_res_time + timedelta(minutes=self.reserve_duration)
+    
+    def get_res_time_remaining(self) -> int:
+        '''
+        Returns (in seconds) how much time is remaining on the current reservation
+        Returns None if there is no current reservation
+        '''
+        if not self.is_reserved:
+            return None
+        now = datetime.now()
+        return (self.get_res_end() - now).total_seconds()
     
     def reserve(self, user_id: int, reserve_duration: int) -> bool:
         '''
@@ -182,6 +201,7 @@ def handle_connect():
     connected_clients.append(new_station)
     print(f"SocketIO connection established with sid: {request.sid}")
 
+# TODO: handle id collisions and assignment edge cases
 @socketio.on("init")
 def handle_init(json):
     db = get_db()
@@ -219,6 +239,21 @@ def handle_init(json):
     
 @socketio.on("disconnect")
 def handle_disconnect():
+    # cancel reservations in db
+    db = get_db()
+    charging_station = resolve_sid(request.sid)
+    for locker in charging_station.locker_list:
+        if not locker.is_reserved:
+            continue
+        db.execute(
+            f"UPDATE APPUSER "
+            f"SET RESERVED_CS_ID = NULL, "
+            f"RESERVED_CS_SPACE_I = NULL "
+            f"WHERE rowid = {locker.reserver_id}"
+        )
+        db.commit()
+        # TODO: add notification here
+    # remove from connected clients
     connected_clients.remove(resolve_sid(request.sid))
     print(f"SocketIO connection terminated with SID: {request.sid}")
 
