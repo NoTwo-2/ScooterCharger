@@ -9,14 +9,15 @@ bp = Blueprint('notifs', __name__, url_prefix='/notifs')
 @bp.route('/home', methods=['GET', 'POST'])
 def home():
     if request.method == 'POST':
-        msg = Message("Test", sender='ScooterCharger@mst.edu', recipients=['imbeahe@gmail.com', 'e4228557@gmail.com'])
-        msg.body = "Testing"
-        mail.send(msg)
-        return "Sent Email."
+        sendTo = ['imbeahe@gmail.com', 'e4228557@gmail.com']
+        subject = "Test"
+        body = "Testing"
+        if notify(sendTo, subject, body) == "sent":
+            return "Sent Email."
     return render_template('auth/email_demo.html')
 
 def notify(sendTo, subject, message):
     msg = Message(subject, sender='ScooterCharger@mst.edu', recipients=sendTo)
     msg.body = message
     mail.send(msg)
-    return None
+    return "sent"
