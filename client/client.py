@@ -2,7 +2,23 @@ import socketio
 from datetime import datetime
 import time, os
 
-from config import server_url, locker_num
+from config import server_url, locker_num, id
+
+def update_config(x):
+    id = x
+    with open('config.py', 'r') as file:
+        lines = file.readlines()
+
+    new_lines = []
+    for line in lines:
+        if line.strip().startswith('id ='):
+            new_lines.append(f'id = {x}\n')
+        else:
+            new_lines.append(line)
+
+    with open('config.py', 'w') as file:
+        file.writelines(new_lines)
+        
 
 # TODO: order IO devices so that they can be accessed via a locker index
 def find_temp_sensors():
@@ -26,13 +42,18 @@ initialized = False
 
 @sio.event
 def connect():
-    sio.emit('init', {'auth': "dev"})
+    if id is None:
+        sio.emit('init', {'auth': "dev"})
+    else:
+        sio.emit('init', {'auth': "dev", "id": id})
+        
     print("Connected to the server attempting authentication.")
 
 @sio.on('init')
 def on_init(data):
     print(f"Server says: {data}")
-    save_id = data['id']
+    update_config(data['id'])
+    # Write id to config.py no matter what.
     save_rate = data['status_rate']
     global initialized
     initialized = True
