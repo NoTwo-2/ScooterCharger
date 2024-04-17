@@ -172,22 +172,22 @@ def handle_reservation(locker: Locker) -> None:
     # TODO: Send notification to user if time is almost up
     db = get_db()
     user_email = db.execute(f"SELECT EMAIL FROM APPUSER WHERE rowid = {locker.reserver_id}").fetchone()
-    body = "Your reservation is ending soon. (Link to site)"
+    body = "Your reservation is ending soon! Pick up your scooter: (Link to site)"
 
     if minutes_left >= STATUS_RATE/60 and minutes_left < (STATUS_RATE/60)*2:
         subject = "Locker reservation expires in less 10 minutes!"
-        notify(user_email, subject, body) == "sent"
+        notify([user_email], subject, body) == "sent"
 
     elif minutes_left > 0 and minutes_left < STATUS_RATE/60:
         subject = "Locker reservation expires in less 5 minutes!"
-        notify(user_email, subject, body)
+        notify([user_email], subject, body)
     
     # terminate reservation
     if minutes_left <= 0:
         # TODO: Send notification of termination of reservation
         subject = "Locker reservation has expired!"
-        body = "Your reservation has ended. (Link to site)"
-        notify(user_email, subject, body)
+        body = "Your reservation has ended! Pick up your scooter: (Link to site)"
+        notify([user_email], subject, body)
 
         locker.unreserve()
 
@@ -252,7 +252,13 @@ def handle_disconnect():
             f"WHERE rowid = {locker.reserver_id}"
         )
         db.commit()
-        # TODO: add notification here
+
+        # notify user
+        user_email = db.execute(f"SELECT EMAIL FROM APPUSER WHERE rowid = {locker.reserver_id}").fetchone()
+        subject = "Locker reservation ended!"
+        body = "Your reservation has ended! Pick up your scooter: (Link to site)"
+        notify([user_email], subject, body)
+
     # remove from connected clients
     connected_clients.remove(resolve_sid(request.sid))
     print(f"SocketIO connection terminated with SID: {request.sid}")
