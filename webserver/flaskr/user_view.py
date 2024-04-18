@@ -19,6 +19,8 @@ def home():
         return redirect('/view-charging-stations')
     return redirect('/manage-locker')
 
+# Lockers Page (2)
+# show charging stations with available lockers and location
 @bp.route('/view-charging-stations')
 def view_charging_stations():
     # Fetch the list of Charging Stations from the database
@@ -64,8 +66,6 @@ def view_charging_stations():
         admin=admin
     ) 
 
-# Lockers Page (2)
-# show charging stations with available lockers and location
 @bp.route('/view-lockers')
 def show_available_lockers():
     station_id = request.args.get('station_id')
@@ -114,7 +114,6 @@ def reserve_locker():
             # check for existing reservation
             db = get_db()
             result = get_locker_reserved(db, user_id)
-            print(result)
             if not (result is None):
                 flash("You already have an existing reservation!")
                 return redirect('/manage-locker')
@@ -210,17 +209,12 @@ def manage_reservation():
             
         case 'GET':
             charging_station = db.execute(f"SELECT rowid, * FROM CHARGING_STATION WHERE rowid = {cs_id}").fetchone()
-            print(cs_id, locker_i)
             lckr: Locker = None
             for client in connected_clients:
-                print(client.id)
                 if client.id != cs_id:
                     continue
-                print("BOOM")
                 for locker in client.locker_list:
-                    print(locker.get_index())
                     if locker.get_index() == locker_i:
-                        print("BOOM")
                         lckr = locker
             
             return render_template(

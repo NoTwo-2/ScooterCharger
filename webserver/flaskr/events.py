@@ -14,6 +14,8 @@ STATUS_RATE = 300
 
 socketio = SocketIO(cors_allowed_origins="*")
 
+# TODO: Logging for all print functions, maybe 
+
 ################
 # HELPER CLASSES
 ################
@@ -214,7 +216,6 @@ def handle_init(json):
     db.commit()
     
     print(f"SID: {request.sid}, CSID: {charging_station.id} - Charging station initialized")
-    print(charging_station)
     socketio.emit("init", {
         "id" : charging_station.id,
         "status_rate" : STATUS_RATE
@@ -267,7 +268,6 @@ def handle_json(json):
             print(f"SID: {request.sid}, CSID: {charging_station.id} - Sent locker_list in status update with missing information")
             return
     
-    # TODO: Logging
     # TODO: Admin notifications
     current_datetime = datetime.now()
     charging_station.last_stat_time = current_datetime

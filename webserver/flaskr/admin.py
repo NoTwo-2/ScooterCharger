@@ -42,8 +42,6 @@ def edit_charging_station(cs_id):
             else:
                 cs_gmaps_link = "https://maps.google.com/maps?q=" + gmaps_lon_lat.replace(" ", "+", 1)
             
-            print(cs_gmaps_link)
-            
             db = get_db()
             db.execute(
                 f"UPDATE CHARGING_STATION "

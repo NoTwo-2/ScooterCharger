@@ -38,7 +38,6 @@ def register():
                 access_type = AccessType(0).name
             # TODO: Insert some sort of regex for email verification
             passkey = generate_password_hash(password)
-            print(passkey)
             
             try:
                 db.execute(
