@@ -48,7 +48,7 @@ def edit_charging_station(cs_id):
                 f"SET CS_NAME = '{cs_name}', "
                 f"CS_GMAPS_LINK = '{cs_gmaps_link}', "
                 f"CS_ADDRESS = '{cs_address}' "
-                f"WHERE rowid = {cs_id}"
+                f"WHERE CS_ID = {cs_id}"
             )
             db.commit()
             flash("Successfully changed charging station information!")
@@ -60,7 +60,7 @@ def edit_charging_station(cs_id):
             db = get_db()
             db.execute(
                 f"DELETE FROM CHARGING_STATION "
-                f"WHERE rowid = {cs_id}"
+                f"WHERE CS_ID = {cs_id}"
             )
             db.commit()
             flash("Successfully deleted charging station.")

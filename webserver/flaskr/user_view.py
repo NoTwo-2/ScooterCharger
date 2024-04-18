@@ -29,7 +29,7 @@ def view_charging_stations():
     
     # get db data
     db = get_db()
-    rows = db.execute(f"SELECT rowid, * FROM CHARGING_STATION").fetchall()
+    rows = db.execute(f"SELECT * FROM CHARGING_STATION").fetchall()
     
     admin = g.user["ACCESS_TYPE"] == "ADMIN"
     
@@ -43,7 +43,7 @@ def view_charging_stations():
         cc = False
         # check for connected clients
         for cs in connected_clients:
-            if cs.id != row["rowid"]:
+            if cs.id != row["CS_ID"]:
                 continue
             # matching connected client
             station["total_lockers"] = len(cs.locker_list)
@@ -78,7 +78,7 @@ def show_available_lockers():
 
     # get cs table data
     db = get_db()
-    charging_station = db.execute(f"SELECT rowid, * FROM CHARGING_STATION WHERE rowid = {station_id}").fetchone()
+    charging_station = db.execute(f"SELECT * FROM CHARGING_STATION WHERE CS_ID = {station_id}").fetchone()
 
     # get charging station object
     cs: ChargingStation = None
@@ -208,7 +208,7 @@ def manage_reservation():
                     return redirect('/home') # "Invalid action"
             
         case 'GET':
-            charging_station = db.execute(f"SELECT rowid, * FROM CHARGING_STATION WHERE rowid = {cs_id}").fetchone()
+            charging_station = db.execute(f"SELECT * FROM CHARGING_STATION WHERE CS_ID = {cs_id}").fetchone()
             lckr: Locker = None
             for client in connected_clients:
                 if client.id != cs_id:

@@ -53,7 +53,6 @@ class ChargingStation:
             self.locker_list.append(new_locker)
             
             new_locker.unreserve()
-            new_locker.unlock()
 
 class Locker:
     def __init__(
@@ -129,7 +128,7 @@ class Locker:
         socketio.emit("lock", {
             "index" : self.get_index()
         }, to=self.parent_station.client_sid)
-        print(f"SERVER - Sent lock command to SID: {self.parent_station.client_sid}, LID: {self.parent_station.id}")
+        print(f"SERVER - Sent lock command to CSID: {self.parent_station.id}, LID: {self.get_index()}")
     
     def unlock(self) -> None:
         '''
@@ -140,7 +139,7 @@ class Locker:
         socketio.emit("unlock", {
             "index" : self.get_index()
         }, to=self.parent_station.client_sid)
-        print(f"SERVER - Sent unlock command to SID: {self.parent_station.client_sid}, LID: {self.parent_station.id}")
+        print(f"SERVER - Sent unlock command to CSID: {self.parent_station.id}, LID: {self.get_index()}")
 
 connected_clients: "list[ChargingStation]" = []
 
@@ -175,6 +174,51 @@ def handle_reservation(locker: Locker) -> None:
     if minutes_left <= 0:
         # TODO: Send notification of termination of reservation
         locker.unreserve()
+        
+def handle_new_connection(id: int = None) -> int:
+    '''
+    Takes in an ID and returns an ID to send back to the locker
+    Does various actions depending on the situation
+    '''
+    current_datetime = datetime.now()
+    db = get_db()
+    
+    # Case: No ID is given - Action: Create new entry and return auto-generated ID
+    if id is None:
+        cursor = db.cursor()
+        cursor.execute(f"INSERT INTO CHARGING_STATION(CS_LAST_UPDATE) VALUES ('{current_datetime}')")
+        rowid = cursor.lastrowid
+        db.commit()
+        print(f"  No ID given, assigned CSID: {rowid}")
+        return rowid
+    
+    # Case: An ID is given but no db entry exists - Action: Create new entry with this ID and return the ID
+    charging_station = db.execute(f"SELECT * FROM CHARGING_STATION WHERE CS_ID = {id}").fetchone()
+    if charging_station is None:
+        cursor = db.cursor()
+        cursor.execute(f"INSERT INTO CHARGING_STATION(CS_ID, CS_LAST_UPDATE) VALUES ({id}, '{current_datetime}')")
+        db.commit()
+        print(f"  ID: {id} given, new DB entry created, assigned CSID: {id}")
+        return id
+    
+    # Case: An ID is given, there is a db entry, but there is a live connection using this entry - Action: Create new entry and return auto-generated ID
+    cs: ChargingStation = None
+    for client in connected_clients:
+        if client.id == id:
+            cs = client
+            break
+    if not (cs is None):
+        cursor = db.cursor()
+        cursor.execute(f"INSERT INTO CHARGING_STATION(CS_LAST_UPDATE) VALUES ('{current_datetime}')")
+        rowid = cursor.lastrowid
+        db.commit()
+        print(f"  ID: {id} given but DB entry already in use, new DB entry created, assigned CSID: {rowid}")
+        return rowid
+    
+    # Case: An ID is given, there is a db entry, and there is no live connection using this entry - Action: return id
+    # PYLANCE IS WRONG WHEN IT SAYS THIS CODE IS UNREACHABLE - IT VERY MUCH IS!
+    print(f"  ID: {id} given, assigned CSID: {id}")
+    return id
 
 ################
 # EVENT HANDLERS
@@ -189,7 +233,6 @@ def handle_connect():
 # TODO: handle id collisions and assignment edge cases
 @socketio.on("init")
 def handle_init(json):
-    db = get_db()
     charging_station = resolve_sid(request.sid)
     
     # Check for auth
@@ -202,18 +245,9 @@ def handle_init(json):
         disconnect()
         return
     
-    # Check for ID
-    if not ("id" in json):
-        # Create new locker entry in database
-        cursor = db.cursor()
-        cursor.execute(f"INSERT INTO CHARGING_STATION DEFAULT VALUES")
-        new_id = cursor.lastrowid
-        
-        charging_station.id = new_id
-    else:
-        charging_station.id = json["id"]
-        # db.execute(f"UPDATE LOCKER SET L_ON = 1 WHERE ID = {locker.id}")
-    db.commit()
+    print(f"SID: {request.sid} - Assigning locker ID...")
+    id = None if not ("id" in json.keys()) else json["id"]
+    charging_station.id = handle_new_connection(id)
     
     print(f"SID: {request.sid}, CSID: {charging_station.id} - Charging station initialized")
     socketio.emit("init", {
@@ -238,11 +272,13 @@ def handle_disconnect():
         db.commit()
         # TODO: add notification here
     # remove from connected clients
-    connected_clients.remove(resolve_sid(request.sid))
+    connected_clients.remove(charging_station)
     print(f"SocketIO connection terminated with SID: {request.sid}")
 
 @socketio.on("json")
 def handle_json(json):
+    current_datetime = datetime.now()
+    db = get_db()
     charging_station = resolve_sid(request.sid)
     if charging_station.id is None:
         print(f"SID: {request.sid} - Client has not initialized!")
@@ -269,8 +305,13 @@ def handle_json(json):
             return
     
     # TODO: Admin notifications
-    current_datetime = datetime.now()
     charging_station.last_stat_time = current_datetime
+    db.execute(
+        f"UPDATE CHARGING_STATION "
+        f"SET CS_LAST_UPDATE = '{current_datetime}' "
+        f"WHERE CS_ID = {charging_station.id}"
+    )
+    db.commit()
     print(f"SID: {request.sid}, CSID: {charging_station.id} - Recieved status code: {status_code}, Message: '{msg}'")
         
     # Handle locker number
@@ -286,4 +327,4 @@ def handle_json(json):
         # TODO: check for expired reservation
         handle_reservation(locker)
     
-    print(charging_station)
+    #print(charging_station)
