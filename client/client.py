@@ -1,8 +1,14 @@
 import socketio
 from datetime import datetime
 import time, os
+import RPi.GPIO as GPIO
+import serial, string
+from config import server_url, locker_num, id, lock_pin, outlet_pin
 
-from config import server_url, locker_num, id
+GPIO.setwarnings(False)
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(lock_pin,GPIO.OUT)
+GPIO.setup(outlet_pin, GPIO.OUT)
 
 def update_config(x):
     id = x
@@ -54,7 +60,7 @@ def on_init(data):
     print(f"Server says: {data}")
     update_config(data['id'])
     # Write id to config.py no matter what.
-    save_rate = data['status_rate']
+    save_rate = int(data['status_rate'])
     global initialized
     initialized = True
 
@@ -62,6 +68,7 @@ def on_init(data):
 def lock(data):
     locker_index = data['index']
     print(f"Locking locker {locker_index}")
+    GPIO.output(lock_pin, False)
     lockers[locker_index]['state'] = "locked"
     sio.emit('json', {'status_code': 0, "locker_list": lockers})
 
@@ -69,6 +76,7 @@ def lock(data):
 def unlock(data):
     locker_index = data['index']
     print(f"Unlocking locker {locker_index}")
+    GPIO.output(lock_pin, True)
     lockers[locker_index]['state'] = "unlocked"
     sio.emit('json', {'status_code': 0, "locker_list": lockers})
     
@@ -76,28 +84,36 @@ def unlock(data):
 def disconnect():
     print("Disconnected from the server.")
 
-def send_time_message():
+def update_message():
     while True:
         # Get the current temperature
-        # cur_temp = read_temp(temp_sensors[0])
-        # lockers[0]["temperature"] = cur_temp
+        lockers[0]["temperature"] = read_temp(temp_sensors[0])
+    
+        lockers[0]["current"] = str(serial_input.readline())[2:-5]
         
         # Emit the message with the current time
         sio.emit('json', {'status_code': 0, "locker_list": lockers})
         print(f"Sent message: {lockers}")
         
         # Wait for 10 seconds before sending the next message
-        time.sleep(10)
+        time.sleep()
 
 if __name__ == '__main__':
-    # temp_sensors = find_temp_sensors()
+    # Setup for sensors
+    temp_sensors = find_temp_sensors()
+    serial_input = serial.Serial('/dev/ttyACM0',9600,8,'N',1,timeout=1)
+    save_rate = 10
+    
+    # Connect to server
     print(f"Attempting connection to {server_url}...")
     sio.connect(server_url)
     while not initialized:
-        continue
+       continue
+    
+    # Main task executions
     print("Finished initialization")
     try:
-        send_time_message()
+        update_message()
     except KeyboardInterrupt:
         print("Client manually disconnected.")
         sio.disconnect()
