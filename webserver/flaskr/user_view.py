@@ -186,10 +186,11 @@ def manage_reservation():
             match action:
                 case 'toggle-lock':
                     if lckr.res_locked:
+                        flash("Sent unlock command to locker.")
                         lckr.unlock()
                     else:
+                        flash("Sent lock command to locker.")
                         lckr.lock()
-                    flash("Sent lock command to locker.")
                     return redirect('/manage-locker')
                 case 'unreserve':
                     lckr.unreserve()
