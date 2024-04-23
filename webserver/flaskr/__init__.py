@@ -3,6 +3,7 @@
 
 import os
 from flask import Flask, redirect, render_template, url_for
+from .extensions import mail
 
 def create_app() -> Flask:
     # Create instance of Flask object and set some config
@@ -11,6 +12,13 @@ def create_app() -> Flask:
         SECRET_KEY='dev', # TODO: Change this in prod
         DEBUG=True, # TODO: Change in prod
         DATABASE=os.path.join(app.instance_path, 'flaskr.sqlite'),
+        # mail stuff
+        MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.gmail.com'),
+        MAIL_PORT = os.getenv('MAIL_SERVER_PORT', 465),
+        MAIL_USERNAME = os.getenv('MAIL_USERNAME', 'e4228557@gmail.com'),
+        MAIL_USE_TLS = os.getenv('MAIL_USE_TLS', False),
+        MAIL_USE_SSL = os.getenv('MAIL_USE_SSL', True),
+        MAIL_PASSWORD = os.getenv('MAIL_PASSWORD', 'tkaf fzmg exum ugul')
     )
     
     # Create instance folder for application
@@ -34,6 +42,11 @@ def create_app() -> Flask:
     app.register_blueprint(user_view.bp)
     from . import admin
     app.register_blueprint(admin.bp)
+    from . import notifs
+    app.register_blueprint(notifs.bp)
+
+    # mail stuff
+    mail.init_app(app)
 
     @app.route("/")
     def route_to_home():
