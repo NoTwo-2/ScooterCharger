@@ -1,9 +1,16 @@
 import socketio
-from datetime import datetime
 import time, os
-import RPi.GPIO as GPIO
-import serial, string
-from config import server_url, locker_num, id, lock_pin, outlet_pin, max_curr, max_temp # NOTE: Remnants? Needs attention..
+from config import server_url, locker_num, id, max_curr, max_temp
+
+try:
+    import RPi.GPIO as GPIO
+    import serial, string
+    dummy_client = False
+except ImportError:
+    dummy_client = True
+
+# Create a Socket.IO client
+sio = socketio.Client()
 
 ###############
 # EVENTS
@@ -32,10 +39,12 @@ def on_init(data):
 def unlock(data):
     locker_index = data['index']
     print(f"Unlocking locker {locker_index}")
-    GPIO.output(lockers[locker_index]["pins"]["outlet"], True)
+    if not dummy_client:
+        GPIO.output(lockers[locker_index]["pins"]["outlet"], True)
     sio.emit('json', {'status_code': 0, "locker_list": lockers})
     time.wait(5)
-    GPIO.output(lockers[locker_index]["pins"]["outlet"], False)
+    if not dummy_client:
+        GPIO.output(lockers[locker_index]["pins"]["outlet"], False)
     
 @sio.event
 def disconnect():
@@ -79,25 +88,28 @@ def update_message():
         unsafe_currs = ""
         for locker in lockers:
             # Get the most recent sensor values
-            locker["temperature"] = read_temp(locker["pins"]["temp"])
-            locker["current"] = str(locker["pins"]["curr"].readline())[2:-5]
-            
+            if not dummy_client:
+                locker["temperature"] = read_temp(locker["pins"]["temp"])
+                locker["current"] = str(locker["pins"]["curr"].readline())[2:-5]
+                
             unsafe_temp = locker["temperature"] > max_temp
             unsafe_current = locker["current"] > max_curr
             if (not unsafe_temp) and (not unsafe_current):
-                GPIO.output(locker["pins"]["outlet"], True)
+                if not dummy_client:
+                    GPIO.output(locker["pins"]["outlet"], True)
                 locker["state"] = "good"
                 continue
             
             # shut down here
-            GPIO.output(locker["pins"]["outlet"], False)
+            if not dummy_client:
+                GPIO.output(locker["pins"]["outlet"], False)
             locker["state"] = "disabled"
             
             # append datas
             if unsafe_temp:
-                unsafe_temps += f"ID: {lockers.index(locker)} - {locker["temperature"]}\n"
+                unsafe_temps += f"ID: {lockers.index(locker)} - {locker['temperature']}\n"
             if unsafe_current:
-                unsafe_currs += f"ID: {lockers.index(locker)} - {locker["current"]}\n"
+                unsafe_currs += f"ID: {lockers.index(locker)} - {locker['current']}\n"
         
         # Emit the json event
         if unsafe_currs == "" and unsafe_temps == "":
@@ -120,18 +132,8 @@ def update_message():
 ###############
 
 if __name__ == '__main__':
-    # Create a Socket.IO client
-    sio = socketio.Client()
     initialized = False
     save_rate = 10
-    
-    # Setup for sensors
-    temp_sensors = find_temp_sensors()
-    
-    GPIO.setwarnings(False)
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setup(lock_pin,GPIO.OUT) # NOTE: these are depricated, i dont know where they come from now?
-    GPIO.setup(outlet_pin, GPIO.OUT)
 
     # TODO: Initialize this list according to how many IO devices are present (is there an automatic way to figure this out via code?)
     lockers = [{
@@ -145,11 +147,20 @@ if __name__ == '__main__':
             "outlet":0}
     } for x in range(locker_num)]
     
-    # Set pins for each locker
-    lockers[0]["pins"]["temp"] = temp_sensors[0]
-    lockers[0]["pins"]["curr"] = serial.Serial('/dev/ttyACM0',9600,8,'N',1,timeout=1)
-    lockers[0]["pins"]["lock"] = 17
-    lockers[0]["pins"]["outlet"] = 27
+    if not dummy_client:
+        # Setup for sensors
+        temp_sensors = find_temp_sensors()
+        
+        GPIO.setwarnings(False)
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(lock_pin,GPIO.OUT) # NOTE: these are depricated, i dont know where they come from now?
+        GPIO.setup(outlet_pin, GPIO.OUT)
+        
+        # Set pins for each locker
+        lockers[0]["pins"]["temp"] = temp_sensors[0]
+        lockers[0]["pins"]["curr"] = serial.Serial('/dev/ttyACM0',9600,8,'N',1,timeout=1)
+        lockers[0]["pins"]["lock"] = 17
+        lockers[0]["pins"]["outlet"] = 27
     
     # Connect to server
     print(f"Attempting connection to {server_url}...")
