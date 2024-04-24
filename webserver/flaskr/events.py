@@ -106,16 +106,46 @@ class Locker:
         self.reserver_id = user_id
         self.reserve_duration = reserve_duration
         self.last_res_time = datetime.now()
+        
+        # Update DB
+        db = get_db()
+        db.execute(
+            f"UPDATE APPUSER "
+            f"SET RESERVED_CS_ID = {self.parent_station.id}, "
+            f"RESERVED_CS_SPACE_I = {self.get_index()} "
+            f"WHERE rowid = {user_id}"
+        )
+        db.commit()
     
-    def unreserve(self) -> None:
+    def unreserve(self, reason="User Requested") -> None:
         '''
         Unassigns this locker space
         '''
+        if not (self.reserver_id is None):
+            # Update DB
+            db = get_db()
+            db.execute(
+                f"UPDATE APPUSER "
+                f"SET RESERVED_CS_ID = NULL, "
+                f"RESERVED_CS_SPACE_I = NULL "
+                f"WHERE rowid = {self.reserver_id}"
+            )
+            db.commit()
+            
+            # Send email if the reservation wasn't terminated via user request
+            if reason != "User Requested":
+                user_email = db.execute(f"SELECT EMAIL FROM APPUSER WHERE rowid = {self.reserver_id}").fetchone()
+                subject = "Locker reservation terminated"
+                body = (
+                    f"Your active reservation of Locker {self.get_index()} has been terminated for this reason: {reason}.\n"
+                    "If you still have items remaining inside the locker, you will have to re-reserve and open the locker at the website.\n"
+                    "If you are unable to retrieve your items, please contact StuCo immediatley."
+                )
+                notify([user_email], subject, body)
+        
         self.is_reserved = False
         self.reserver_id = None
         self.reserve_duration = None
-        
-        # TODO: provide reason argument to this function, database change, and email notification here instead of everywhere else...
     
     def unlock(self) -> None:
         '''
@@ -160,7 +190,7 @@ def handle_reservation(locker: Locker) -> None:
 
     if minutes_left >= STATUS_RATE/60 and minutes_left < (STATUS_RATE/60)*2:
         subject = f"Locker reservation expires in {minutes_left} minutes!"
-        notify([user_email], subject, body) == "sent"
+        notify([user_email], subject, body)
 
     elif minutes_left > 0 and minutes_left < STATUS_RATE/60:
         subject = f"Locker reservation expires in {minutes_left} minutes!"
@@ -168,11 +198,7 @@ def handle_reservation(locker: Locker) -> None:
     
     # terminate reservation
     if minutes_left <= 0:
-        subject = "Locker reservation has expired!"
-        body = "Your reservation has ended. If your items are still inside, you will need to re-reserve the locker to retrieve them."
-        notify([user_email], subject, body)
-
-        locker.unreserve()
+        locker.unreserve(reason="Reservation Expired")
         
 def handle_new_connection(id: int = None) -> int:
     '''
@@ -256,27 +282,11 @@ def handle_init(json):
     
 @socketio.on("disconnect")
 def handle_disconnect():
-    # cancel reservations in db
-    db = get_db()
     charging_station = resolve_sid(request.sid)
     for locker in charging_station.locker_list:
-        if not locker.is_reserved:
-            continue
+        if locker.is_reserved:
+            locker.unreserve(reason="Charging Station Has Shut Down")
         
-        # TODO: replace with a simple unreserve function call when that functionality is implemented
-        db.execute(
-            f"UPDATE APPUSER "
-            f"SET RESERVED_CS_ID = NULL, "
-            f"RESERVED_CS_SPACE_I = NULL "
-            f"WHERE rowid = {locker.reserver_id}"
-        )
-        db.commit()
-        # notify user
-        user_email = db.execute(f"SELECT EMAIL FROM APPUSER WHERE rowid = {locker.reserver_id}").fetchone()
-        subject = "Locker reservation ended!"
-        body = "Your reservation has ended! Pick up your scooter: (Link to site)"
-        notify([user_email], subject, body)
-
     # remove from connected clients
     connected_clients.remove(charging_station)
     print(f"SocketIO connection terminated with SID: {request.sid}")
@@ -309,8 +319,6 @@ def handle_json(json):
         if not ("state" in locker):
             print(f"SID: {request.sid}, CSID: {charging_station.id} - Sent locker_list in status update with missing information")
             return
-        
-        # TODO: unreserve if locker state is not equal to "good"
     
     # TODO: Admin notifications
     charging_station.last_stat_time = current_datetime
@@ -332,7 +340,12 @@ def handle_json(json):
         locker = charging_station.locker_list[i]
         locker.status = locker_list[i]
         
-        # TODO: check for expired reservation
+        # Check for expired reservation
         handle_reservation(locker)
+        
+        # Check for non-good state
+        if locker.status["state"] != "good":
+            print(f"SID: {request.sid}, CSID: {charging_station.id} - Locker {locker.get_index()} has been disabled, reservations terminated")
+            locker.unreserve(reason="Dangerous Operating Conditions")
     
     #print(charging_station)

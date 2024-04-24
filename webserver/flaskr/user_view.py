@@ -68,6 +68,7 @@ def view_charging_stations():
 
 @bp.route('/view-lockers')
 def show_available_lockers():
+    # TODO: add admin view for this, too
     station_id = request.args.get('station_id')
     if station_id is None:
         flash("Incomplete URL.")
@@ -92,13 +93,18 @@ def show_available_lockers():
     
     # construct locker dicts
     for locker in cs.locker_list:
-        if locker.is_reserved:
+        if locker.is_reserved or locker.status["state"] != "good":
             continue
         lckr = {}
         lckr['locker_id'] = locker.get_index()
         avail_lckr.append(lckr)
 
-    return render_template('auth/view_available.html', lockers=avail_lckr, station_name=charging_station["CS_NAME"], station_id=station_id) 
+    return render_template(
+        'auth/view_available.html', 
+        lockers=avail_lckr, 
+        station_name=charging_station["CS_NAME"], 
+        station_id=station_id
+    ) 
 
 # Reservation Form Page (3)
 # select a charging station and reserve locker
@@ -136,15 +142,6 @@ def reserve_locker():
             # start reservation
             reserve_time = 120
             lckr.reserve(user_id, reserve_time)
-            # TODO: remove this when reserve does this for you
-            db = get_db()
-            db.execute(
-                f"UPDATE APPUSER "
-                f"SET RESERVED_CS_ID = {cs_id}, "
-                    f"RESERVED_CS_SPACE_I = {lckr.get_index()} "
-                f"WHERE rowid = {user_id}"
-            )
-            db.commit()
             flash("Locker successfully reserved!")
             return redirect('/manage-locker')
         case _:
@@ -191,15 +188,6 @@ def manage_reservation():
                     return redirect('/manage-locker')
                 case 'unreserve':
                     lckr.unreserve()
-                    # TODO: remove this when unreserve does this for you
-                    db = get_db()
-                    db.execute(
-                        f"UPDATE APPUSER "
-                        f"SET RESERVED_CS_ID = NULL, "
-                        f"RESERVED_CS_SPACE_I = NULL "
-                        f"WHERE rowid = {user_id}"
-                    )
-                    db.commit()
                     flash("Successfully unreserved locker.")
                     return redirect('/home')
                 case _:
