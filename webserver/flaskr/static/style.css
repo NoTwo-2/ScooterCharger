@@ -43,6 +43,7 @@ body {
   background-color: #72BF44;
   border-color: #003B49;
   cursor: pointer;
+  margin-bottom: 10px;
 }
 
 @keyframes flash {
@@ -85,9 +86,28 @@ body {
   border: 1px solid #ccc;
   text-align: left;
   font-size: larger;
+  background-color: white;
   transition: background-color 0.3s ease-in-out;
   margin-bottom: 10px; /* Add margin between lockers */
   width: 85%;
+}
+
+/* Style the button that is used to open and close the collapsible content */
+.collapsible {
+  display: flex;
+  flex-direction:column;
+  cursor: pointer;
+  background-color: #D6D1CA;
+  width: auto;
+  padding: 2px;
+  font-size: 20px;
+  border-radius: 5px;
+  margin-bottom: 5px;
+}
+
+.collapsible:hover {
+  background-color: #ACA199;
+  box-shadow: 0 0 5px #63666A;
 }
 
 .station-contents {

@@ -136,7 +136,7 @@ def reserve_locker():
                 return redirect('/view-charging-stations')
             # find available locker
             lckr: Locker = charger.locker_list[locker_i]
-            if lckr.is_reserved or (lckr.status["state"] != "unlocked"):
+            if lckr.is_reserved or (lckr.status["state"] != "good"):
                 flash("Requested locker is no longer available. Please try again.")
                 return redirect('/view-charging-stations')
             # start reservation

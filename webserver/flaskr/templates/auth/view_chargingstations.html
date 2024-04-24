@@ -16,15 +16,15 @@
       </form>
       <div class="station-container">
         {% for station in charging_stations %}
-        <div class="station" onclick="this.lastElementChild.style.display = 'block'">
-          <div style="display: flex; flex-direction:column;">
+        <div class="station">
+          <div class="collapsible">
             <div>{% if admin %}[ID-{{ station['CS_ID'] }}] {% endif %}{{ station['CS_NAME'] }}</div>
             <div style="margin-left:auto; margin-right:0; font-size:medium">Lockers Available: {{ station['locker_num'] }}/{{ station['total_lockers'] }}</div>
           </div>
           <div class="station-contents">
             <hr>
             <div>Address: {{ station['CS_ADDRESS'] }}</div>
-            <button onclick="this.nextElementSibling.style.display = 'block'" style="margin-bottom: 5px;">Show in Google Maps</button>
+            <div class="collapsible">Show in Google Maps</div>
             <iframe src="{{ station['CS_GMAPS_LINK'] }}&output=embed" width="100%" height="450" frameborder="0" style="border:0; display:none; margin-bottom:5px;" allow="fullscreen"></iframe>
             <form method="GET" action="{{ url_for('user_view.show_available_lockers') }}" style="display:flex">
               <input type="hidden" name="station_id" value="{{ station['CS_ID'] }}">
@@ -33,18 +33,20 @@
             {% if admin %}
             <div>Last Update Time: {{ station['CS_LAST_UPDATE'] }}</div>
             <h2>Admin Tools</h2>
-            <button onclick="this.nextElementSibling.style.display = 'flex'" style="margin-bottom: 5px;">Edit</button>
-            <form method="POST" action="{{ url_for('admin.edit_charging_station', cs_id=station['CS_ID']) }}" style="display:none; flex-direction:column">
-              <input type="hidden" name="action" value="POST">
-              <input type="hidden" name="cs_gmaps_link" value="{{ station['CS_GMAPS_LINK'] }}">
-              <label for="cs_name">Name:</label>
-              <input type="text" name="cs_name" value="{{ station['CS_NAME'] }}">
-              <label for="gmaps_lon_lat">GPS Coordinates (from Google Maps):</label>
-              <input type="text" name="gmaps_lon_lat" placeholder="Paste Coordinates Here">
-              <label for="cs_address">Address:</label>
-              <input type="text" name="cs_address" value="{{ station['CS_ADDRESS'] }}">
-              <input type="submit" value="Submit New Values" style="margin-left:auto; margin-right:0">
-            </form>
+            <div class="collapsible">Edit Values</div>
+            <div style="display:none;">
+              <form method="POST" action="{{ url_for('admin.edit_charging_station', cs_id=station['CS_ID']) }}" style="display:flex; flex-direction:column">
+                <input type="hidden" name="action" value="POST">
+                <input type="hidden" name="cs_gmaps_link" value="{{ station['CS_GMAPS_LINK'] }}">
+                <label for="cs_name">Name:</label>
+                <input type="text" name="cs_name" value="{{ station['CS_NAME'] }}">
+                <label for="gmaps_lon_lat">GPS Coordinates (from Google Maps):</label>
+                <input type="text" name="gmaps_lon_lat" placeholder="Paste Coordinates Here">
+                <label for="cs_address">Address:</label>
+                <input type="text" name="cs_address" value="{{ station['CS_ADDRESS'] }}">
+                <input type="submit" value="Submit New Values" style="margin-left:auto; margin-right:0">
+              </form>
+            </div>
             {% endif %}
           </div>
         </div>
@@ -52,35 +54,39 @@
         {% if admin %}
         <h2>Offline stations</h2>
         {% for station in offline_stations %}
-        <div class="station" onclick="this.lastElementChild.style.display = 'block'">
-          <div style="display: flex; flex-direction:column;">
+        <div class="station">
+          <div class="collapsible">
             <div>[ID-{{ station['CS_ID'] }}] {{ station['CS_NAME'] }}</div>
           </div>
           <div class="station-contents">
             <hr>
             <div>Address: {{ station['CS_ADDRESS'] }}</div>
-            <button onclick="this.nextElementSibling.style.display = 'block'" style="margin-bottom: 5px;">Show in Google Maps</button>
+            <div class="collapsible">Show in Google Maps</div>
             <iframe src="{{ station['CS_GMAPS_LINK'] }}&output=embed" width="100%" height="450" frameborder="0" style="border:0; display:none; margin-bottom:5px;" allow="fullscreen"></iframe>
             <div>Last Update Time: {{ station['CS_LAST_UPDATE'] }}</div>
             <h2>Admin Tools</h2>
-            <button onclick="this.nextElementSibling.style.display = 'flex'" style="margin-bottom: 5px;">Edit</button>
-            <form method="POST" action="{{ url_for('admin.edit_charging_station', cs_id=station['CS_ID']) }}" style="display:none; flex-direction:column">
-              <input type="hidden" name="action" value="POST">
-              <input type="hidden" name="cs_gmaps_link" value="{{ station['CS_GMAPS_LINK'] }}">
-              <label for="cs_name">Name:</label>
-              <input type="text" name="cs_name" value="{{ station['CS_NAME'] }}">
-              <label for="gmaps_lon_lat">GPS Coordinates (from Google Maps):</label>
-              <input type="text" name="gmaps_lon_lat" placeholder="Paste Coordinates Here">
-              <label for="cs_address">Address:</label>
-              <input type="text" name="cs_address" value="{{ station['CS_ADDRESS'] }}">
-              <input type="submit" value="Submit New Values" style="margin-left:auto; margin-right:0">
-            </form>
+            <div class="collapsible">Edit Values</div>
+            <div style="display:none;">
+              <form method="POST" action="{{ url_for('admin.edit_charging_station', cs_id=station['CS_ID']) }}" style="display:flex; flex-direction:column">
+                <input type="hidden" name="action" value="POST">
+                <input type="hidden" name="cs_gmaps_link" value="{{ station['CS_GMAPS_LINK'] }}">
+                <label for="cs_name">Name:</label>
+                <input type="text" name="cs_name" value="{{ station['CS_NAME'] }}">
+                <label for="gmaps_lon_lat">GPS Coordinates (from Google Maps):</label>
+                <input type="text" name="gmaps_lon_lat" placeholder="Paste Coordinates Here">
+                <label for="cs_address">Address:</label>
+                <input type="text" name="cs_address" value="{{ station['CS_ADDRESS'] }}">
+                <input type="submit" value="Submit New Values" style="margin-left:auto; margin-right:0">
+              </form>
+            </div>
             <hr>
-            <button onclick="this.nextElementSibling.style.display = 'flex'" style="margin-bottom: 5px;">Delete</button>
-            <form method="POST" action="{{ url_for('admin.edit_charging_station', cs_id=station['CS_ID']) }}" style="display:none">
-              <input type="hidden" name="action" value="DELETE">
-              <input type="submit" value="Delete" style="margin-left:auto; margin-right:0; background-color:#AD2327; color:white">
-            </form>
+            <div class="collapsible">Delete Station</div>
+            <div style="display:none;">
+              <form method="POST" action="{{ url_for('admin.edit_charging_station', cs_id=station['CS_ID']) }}" style="display:flex;">
+                <input type="hidden" name="action" value="DELETE">
+                <input type="submit" value="Delete" style="margin-left:auto; margin-right:0; background-color:#AD2327; color:white">
+              </form>
+            </div>
           </div>
         </div>
         {% endfor %}
