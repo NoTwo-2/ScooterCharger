@@ -26,10 +26,10 @@
       {% if not g.user %}
       <p>Please login to manage your reservations.</p>
       {% else %}
-      <h2>Lock/Unlock Locker</h2>
+      <h2>Open Locker</h2>
       <form method="post" action="/manage-locker">
-        <input type="hidden" name="action" value="toggle-lock"> 
-        <button type="submit">Lock/Unlock Locker</button>
+        <input type="hidden" name="action" value="open"> 
+        <button type="submit">Open Locker</button>
       </form>
       <h2>Cancel Reservation</h2>
       <form method="post" action="{{ url_for('user_view.manage_reservation') }}">

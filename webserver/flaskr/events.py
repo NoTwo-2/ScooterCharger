@@ -64,12 +64,11 @@ class Locker:
         self.parent_station = parent_station
         
         self.is_reserved: bool = False
-        self.res_locked: bool = False
         self.reserver_id: int = None
         self.reserve_duration: int = None # In minutes
         self.last_res_time: datetime = None
         
-        self.status: dict = {"state" : "unlocked"}
+        self.status: dict = {"state" : "good"}
     
     def get_index(self) -> int:
         '''
@@ -116,28 +115,13 @@ class Locker:
         self.reserver_id = None
         self.reserve_duration = None
         
-        self.unlock()
-
-        # TODO: notifications (should be done where this function is called from)
-        # To provide more context as to why the locker was unreserved
-    
-    def lock(self) -> None:
-        '''
-        Sends a lock SocketIO event to the connected charging station.
-        Changes res_locked to True
-        '''
-        self.res_locked = True
-        socketio.emit("lock", {
-            "index" : self.get_index()
-        }, to=self.parent_station.client_sid)
-        print(f"SERVER - Sent lock command to CSID: {self.parent_station.id}, LID: {self.get_index()}")
+        # TODO: provide reason argument to this function, database change, and email notification here instead of everywhere else...
     
     def unlock(self) -> None:
         '''
         Sends an unlock SocketIO event to the connected charging station
         Changes res_locked to False
         '''
-        self.res_locked = False
         socketio.emit("unlock", {
             "index" : self.get_index()
         }, to=self.parent_station.client_sid)
@@ -170,24 +154,22 @@ def handle_reservation(locker: Locker) -> None:
     elapsed_time = current_datetime - locker.last_res_time
     minutes_left = locker.reserve_duration - int(elapsed_time.seconds / 60)
     
-    # TODO: Send notification to user if time is almost up
     db = get_db()
     user_email = db.execute(f"SELECT EMAIL FROM APPUSER WHERE rowid = {locker.reserver_id}").fetchone()
     body = "Your reservation is ending soon! Pick up your scooter: (Link to site)"
 
     if minutes_left >= STATUS_RATE/60 and minutes_left < (STATUS_RATE/60)*2:
-        subject = "Locker reservation expires in less 10 minutes!"
+        subject = f"Locker reservation expires in {minutes_left} minutes!"
         notify([user_email], subject, body) == "sent"
 
     elif minutes_left > 0 and minutes_left < STATUS_RATE/60:
-        subject = "Locker reservation expires in less 5 minutes!"
+        subject = f"Locker reservation expires in {minutes_left} minutes!"
         notify([user_email], subject, body)
     
     # terminate reservation
     if minutes_left <= 0:
-        # TODO: Send notification of termination of reservation
         subject = "Locker reservation has expired!"
-        body = "Your reservation has ended! Pick up your scooter: (Link to site)"
+        body = "Your reservation has ended. If your items are still inside, you will need to re-reserve the locker to retrieve them."
         notify([user_email], subject, body)
 
         locker.unreserve()
@@ -280,6 +262,8 @@ def handle_disconnect():
     for locker in charging_station.locker_list:
         if not locker.is_reserved:
             continue
+        
+        # TODO: replace with a simple unreserve function call when that functionality is implemented
         db.execute(
             f"UPDATE APPUSER "
             f"SET RESERVED_CS_ID = NULL, "
@@ -287,7 +271,6 @@ def handle_disconnect():
             f"WHERE rowid = {locker.reserver_id}"
         )
         db.commit()
-
         # notify user
         user_email = db.execute(f"SELECT EMAIL FROM APPUSER WHERE rowid = {locker.reserver_id}").fetchone()
         subject = "Locker reservation ended!"
@@ -326,6 +309,8 @@ def handle_json(json):
         if not ("state" in locker):
             print(f"SID: {request.sid}, CSID: {charging_station.id} - Sent locker_list in status update with missing information")
             return
+        
+        # TODO: unreserve if locker state is not equal to "good"
     
     # TODO: Admin notifications
     charging_station.last_stat_time = current_datetime

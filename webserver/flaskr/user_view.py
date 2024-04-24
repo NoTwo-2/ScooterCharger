@@ -136,6 +136,7 @@ def reserve_locker():
             # start reservation
             reserve_time = 120
             lckr.reserve(user_id, reserve_time)
+            # TODO: remove this when reserve does this for you
             db = get_db()
             db.execute(
                 f"UPDATE APPUSER "
@@ -184,16 +185,13 @@ def manage_reservation():
 
             # Deal with action
             match action:
-                case 'toggle-lock':
-                    if lckr.res_locked:
-                        flash("Sent unlock command to locker.")
-                        lckr.unlock()
-                    else:
-                        flash("Sent lock command to locker.")
-                        lckr.lock()
+                case 'open':
+                    lckr.unlock()
+                    flash("Sent unlock command to locker.")
                     return redirect('/manage-locker')
                 case 'unreserve':
                     lckr.unreserve()
+                    # TODO: remove this when unreserve does this for you
                     db = get_db()
                     db.execute(
                         f"UPDATE APPUSER "
