@@ -19,5 +19,9 @@ def home():
 def notify(sendTo, subject, message):
     msg = Message(subject, sender='ScooterCharger@mst.edu', recipients=sendTo)
     msg.body = message
-    mail.send(msg)
+    try:
+        mail.send(msg)
+    except Exception as e:
+        print(e)
+        return e.__str__()
     return "sent"
