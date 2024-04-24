@@ -44,8 +44,8 @@ def init_db():
         db.executescript(f.read().decode('utf8'))
     
     db.execute(
-        f"INSERT INTO APPUSER (ACCESS_TYPE, EMAIL, PASSKEY) " +
-        f"VALUES('ADMIN', '{ADMIN_EMAIL}', '{generate_password_hash(ADMIN_PASSWORD)}')"
+        f"INSERT INTO APPUSER (ACCESS_TYPE, EMAIL, PASSKEY, IS_VERIFIED) " +
+        f"VALUES('ADMIN', '{ADMIN_EMAIL}', '{generate_password_hash(ADMIN_PASSWORD)}', '1')"
     )
     db.commit()
 
