@@ -48,9 +48,19 @@ def view_charging_stations():
             # matching connected client
             station["total_lockers"] = len(cs.locker_list)
             locker_avail = 0
-            for locker in cs.locker_list:
-                if not locker.is_reserved: locker_avail += 1
+            lockers = []
+            for lckr in cs.locker_list:
+                if not lckr.is_reserved: locker_avail += 1
+            
+                locker = dict()
+                locker["index"] = lckr.get_index()
+                locker["status"] = lckr.status
+                locker["reserved"] = lckr.is_reserved
+                locker["reserve_time"] = None if lckr.last_res_time is None else lckr.last_res_time.strftime("%a, %d at %I:%M:%S %p")
+                
+                lockers.append(locker)
             station["locker_num"] = locker_avail
+            station["locker_list"] = lockers
             
             online_stations.append(station)
             cc = True

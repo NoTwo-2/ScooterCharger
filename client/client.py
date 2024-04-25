@@ -30,6 +30,7 @@ def on_init(data):
     print(f"Server says: {data}")
     update_config(data['id'])
     # Write id to config.py no matter what.
+    sio.emit('json', {'status_code': 0, "locker_list": lockers})
     global save_rate
     save_rate = int(data['status_rate'])
     global initialized
@@ -49,6 +50,7 @@ def unlock(data):
 @sio.event
 def disconnect():
     print("Disconnected from the server.")
+    initialized = False
 
 ###############
 # UTIL
@@ -82,6 +84,8 @@ def read_temp(sensor_num):
 
 def update_message():
     while True:
+        # Loop periodically based on save_rate
+        time.sleep(save_rate)
         # NOTE: shouldnt this be getting checked more frequently?
         # If any values out of bounds shutdown
         unsafe_temps = ""
@@ -123,9 +127,6 @@ def update_message():
             sio.emit('json', {'status_code': 1, "error_msg": final_message, "locker_list": lockers})
         
         print(f"Sent JSON")
-        
-        # Loop periodically based on save_rate
-        time.sleep(save_rate)
 
 ###############
 # INIT
