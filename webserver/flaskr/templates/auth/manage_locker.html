@@ -15,29 +15,37 @@
       <h1>Manage Reservation</h1>
       <h2>Station: {{ charging_station['CS_NAME'] }}</h2>
       <div>Address: {{ charging_station['CS_ADDRESS'] }}</div>
-      <div class="collapsible">Show in Google Maps</div>
+      <div class="collapsible" style="align-items: center; width: 100%;">Show in Google Maps</div>
       <iframe src="{{ charging_station['CS_GMAPS_LINK'] }}&output=embed" width="100%" height="450" frameborder="0" style="border:0; display:none; margin-bottom:5px;" allow="fullscreen"></iframe>
       <h3>Locker ID: {{ locker_id }}</h3>
       <div>State: {{ state }}</div>
       <div>Reserved for {{ elapsed_hours }} hours, {{ elapsed_minutes }} minutes, and {{ elapsed_seconds }} seconds</div>
-    </div>
-
-    <div class="locker-container">
       {% if not g.user %}
       <p>Please login to manage your reservations.</p>
       {% else %}
-      <h2>Open Locker</h2>
-      <form method="post" action="/manage-locker">
+      <hr width="100%">
+      <form method="POST" action="/manage-locker">
         <input type="hidden" name="action" value="open"> 
-        <button type="submit">Open Locker</button>
+        <input type="submit" value="Open Locker">
       </form>
-      <h2>Cancel Reservation</h2>
-      <form method="post" action="{{ url_for('user_view.manage_reservation') }}">
-        <input type="hidden" name="action" value="unreserve">  <!-- Specify the action -->
-        <button type="submit">Cancel Reservation</button>
+      <hr width="100%">
+      <form action="javascript:void(0)" onclick="getElementById('modal').style.display = 'block'">
+        <input type="submit" value="Cancel Reservation" style="background-color:#AD2327; color:white">
       </form>
       {% endif %}
     </div>
+  </div>
+</div>
+<div id="modal" class="modal" onclick="this.style.display = 'none'">
+  <div class="modal-content">
+    <h2>Confirmation</h2>
+    Are you sure you want to cancel your reservation?
+    You will not be able to open this locker after you do.
+    <hr>
+    <form method="post" action="{{ url_for('user_view.manage_reservation') }}">
+      <input type="hidden" name="action" value="unreserve">  <!-- Specify the action -->
+      <input type="submit" value="Cancel Reservation" style="background-color:#AD2327; color:white">
+    </form>
   </div>
 </div>
 {% for message in get_flashed_messages() %}

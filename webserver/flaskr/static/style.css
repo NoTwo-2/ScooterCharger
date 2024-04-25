@@ -99,9 +99,9 @@ body {
   cursor: pointer;
   background-color: #D6D1CA;
   width: auto;
-  padding: 2px;
+  padding: 5px;
   font-size: 20px;
-  border-radius: 5px;
+  border-radius: 10px;
   margin-bottom: 5px;
 }
 
@@ -118,6 +118,29 @@ body {
 .station:hover {
   background-color: #f0f0f0;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+}
+
+.modal {
+  display: none; /* Hidden by default */
+  position: fixed; /* Stay in place */
+  z-index: 1; /* Sit on top */
+  left: 0;
+  top: 0;
+  width: 100%; /* Full width */
+  height: 100%; /* Full height */
+  overflow: auto; /* Enable scroll if needed */
+  background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+}
+
+/* Modal Content/Box */
+.modal-content {
+  background-color: #fefefe;
+  margin: 15% auto;
+  padding: 20px;
+  text-align: center;
+  font-size: larger;
+  border: 1px solid #888;
+  width: 60%; /* Could be more or less, depending on screen size */
 }
 
 /* =============================================================================
