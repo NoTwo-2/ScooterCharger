@@ -11,7 +11,8 @@ from .notifs import notify
 # TODO: Use .env or something similar to handle this
 SECRET = "dev"
 
-STATUS_RATE = 300
+STATUS_RATE = 300 # in seconds
+TIME_BEFORE_NOTIF = 240 # in minutes
 '''Rate the server expects status updates in seconds'''
 
 socketio = SocketIO(cors_allowed_origins="*")
@@ -65,7 +66,6 @@ class Locker:
         
         self.is_reserved: bool = False
         self.reserver_id: int = None
-        self.reserve_duration: int = None # In minutes
         self.last_res_time: datetime = None
         
         self.status: dict = {"state" : "good"}
@@ -76,26 +76,17 @@ class Locker:
         '''
         return self.parent_station.locker_list.index(self)
     
-    def get_res_end(self) -> datetime:
+    def get_elapsed_res_time(self) -> tuple[int, int]:
         '''
-        Returns datetime object containing when the reservation ends
-        Returns None if there is no current reservation
+        Returns the elapsed reservation time as a tuple with the format (minutes, seconds)
         '''
-        if not self.is_reserved:
-            return None
-        return self.last_res_time + timedelta(minutes=self.reserve_duration)
+        current_datetime = datetime.now()
+        elapsed_time = current_datetime - self.last_res_time
+        elapsed_minutes = int(elapsed_time.seconds / 60)
+        elapsed_seconds = elapsed_time.seconds % 60
+        return elapsed_minutes, elapsed_seconds
     
-    def get_res_time_remaining(self) -> int:
-        '''
-        Returns (in seconds) how much time is remaining on the current reservation
-        Returns None if there is no current reservation
-        '''
-        if not self.is_reserved:
-            return None
-        now = datetime.now()
-        return (self.get_res_end() - now).total_seconds()
-    
-    def reserve(self, user_id: int, reserve_duration: int) -> bool:
+    def reserve(self, user_id: int) -> bool:
         '''
         Assigns this locker to the ID of the user passed
         Returns true if the locker was reserved, false otherwise
@@ -104,7 +95,6 @@ class Locker:
             return False
         self.is_reserved = True
         self.reserver_id = user_id
-        self.reserve_duration = reserve_duration
         self.last_res_time = datetime.now()
         
         # Update DB
@@ -134,7 +124,7 @@ class Locker:
             
             # Send email if the reservation wasn't terminated via user request
             if reason != "User Requested":
-                user_email = db.execute(f"SELECT EMAIL FROM APPUSER WHERE rowid = {self.reserver_id}").fetchone()
+                user_email = get_user_email(self.reserver_id)
                 subject = "Locker reservation terminated"
                 body = (
                     f"Your active reservation of Locker {self.get_index()} has been terminated for this reason: {reason}.\n"
@@ -145,7 +135,6 @@ class Locker:
         
         self.is_reserved = False
         self.reserver_id = None
-        self.reserve_duration = None
     
     def unlock(self) -> None:
         '''
@@ -172,6 +161,13 @@ def resolve_sid(sid: str) -> ChargingStation:
             return client
     return None
 
+def get_user_email(uid: int) -> str:
+    '''
+    Returns the email of the user with the given ID
+    '''
+    db = get_db()
+    return db.execute(f"SELECT EMAIL FROM APPUSER WHERE rowid = {uid}").fetchone()
+
 def handle_reservation(locker: Locker) -> None:
     '''
     Determines whether the current reservation on a locker is still valid.
@@ -180,25 +176,17 @@ def handle_reservation(locker: Locker) -> None:
     # check for reservation
     if not locker.is_reserved:
         return
-    current_datetime = datetime.now()
-    elapsed_time = current_datetime - locker.last_res_time
-    minutes_left = locker.reserve_duration - int(elapsed_time.seconds / 60)
-    
-    db = get_db()
-    user_email = db.execute(f"SELECT EMAIL FROM APPUSER WHERE rowid = {locker.reserver_id}").fetchone()
-    body = "Your reservation is ending soon! Pick up your scooter: (Link to site)"
+    elapsed_minutes, elapsed_seconds = locker.get_elapsed_res_time()
 
-    if minutes_left >= STATUS_RATE/60 and minutes_left < (STATUS_RATE/60)*2:
-        subject = f"Locker reservation expires in {minutes_left} minutes!"
+    if elapsed_minutes > TIME_BEFORE_NOTIF:
+        user_email = get_user_email(locker.reserver_id)
+        subject = "Outstanding scooter locker reservation requires attention!"
+        body = (
+            f"You have held your current reservation for {elapsed_minutes} minutes and {elapsed_seconds}.\n"
+            f"Consider retrieving your items and terminating your reservation here: (Link to site)\n"
+            f"This email will continue to be sent every {int(STATUS_RATE/60)} minutes until your reservation is terminated"
+        )
         notify([user_email], subject, body)
-
-    elif minutes_left > 0 and minutes_left < STATUS_RATE/60:
-        subject = f"Locker reservation expires in {minutes_left} minutes!"
-        notify([user_email], subject, body)
-    
-    # terminate reservation
-    if minutes_left <= 0:
-        locker.unreserve(reason="Reservation Expired")
         
 def handle_new_connection(id: int = None) -> int:
     '''
@@ -255,7 +243,6 @@ def handle_connect():
     connected_clients.append(new_station)
     print(f"SocketIO connection established with sid: {request.sid}")
 
-# TODO: handle id collisions and assignment edge cases
 @socketio.on("init")
 def handle_init(json):
     charging_station = resolve_sid(request.sid)
@@ -346,6 +333,9 @@ def handle_json(json):
         # Check for non-good state
         if locker.status["state"] != "good":
             print(f"SID: {request.sid}, CSID: {charging_station.id} - Locker {locker.get_index()} has been disabled, reservations terminated")
-            locker.unreserve(reason="Dangerous Operating Conditions")
+            # TODO: Notify users of updated state
+            if locker.is_reserved:
+                user_email = get_user_email(locker.reserver_id)
+                pass
     
     #print(charging_station)

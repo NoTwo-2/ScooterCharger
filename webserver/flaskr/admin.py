@@ -68,6 +68,8 @@ def edit_charging_station(cs_id):
         case _:
             return "Bad Request", 400
 
+# TODO: route to force unlock a locker?
+
 @bp.before_request
 def filter_admin():
     '''

@@ -150,8 +150,7 @@ def reserve_locker():
                 flash("Requested locker is no longer available. Please try again.")
                 return redirect('/view-charging-stations')
             # start reservation
-            reserve_time = 120
-            lckr.reserve(user_id, reserve_time)
+            lckr.reserve(user_id)
             flash("Locker successfully reserved!")
             return redirect('/manage-locker')
         case _:
@@ -214,12 +213,18 @@ def manage_reservation():
                     if locker.get_index() == locker_i:
                         lckr = locker
             
+            elapsed_minutes, elapsed_seconds = lckr.get_elapsed_res_time()
+            elapsed_hours = int(elapsed_minutes / 60)
+            elapsed_minutes = elapsed_minutes % 60
+            
             return render_template(
                 'auth/manage_locker.html', 
                 charging_station=charging_station, 
                 locker_id=locker_i, 
                 state=lckr.status["state"], 
-                end_time=lckr.get_res_end().strftime("%a, %d at %I:%M:%S %p")
+                elapsed_hours=elapsed_hours,
+                elapsed_minutes=elapsed_minutes,
+                elapsed_seconds=elapsed_seconds
             )
         case _:
             flash("???")
