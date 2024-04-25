@@ -66,9 +66,14 @@ def register():
                 flash("An account associated with this email already exists.")
                 return redirect(url_for("auth.register"))
             else:
-                send_verification_email(email, verification_token)
-                flash("An email with a verification link has been sent to your email address. Please verify your email.")
-                return redirect(url_for("auth.login"))
+                try:
+                    send_verification_email(email, verification_token)
+                except ValueError:
+                    flash(f"Unable to send verification email to {email}, check the validity of your email and try again")
+                    return redirect(url_for("auth.register"))
+                else:
+                    flash("An email with a verification link has been sent to your email address. Please verify your email.")
+                    return redirect(url_for("auth.login"))
         case 'GET':
             return render_template("auth/register.html")
         case _:
