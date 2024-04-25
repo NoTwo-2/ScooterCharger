@@ -43,7 +43,7 @@ def unlock(data):
     if not dummy_client:
         GPIO.output(lockers[locker_index]["pins"]["outlet"], True)
     sio.emit('json', {'status_code': 0, "locker_list": lockers})
-    time.wait(5)
+    time.sleep(5)
     if not dummy_client:
         GPIO.output(lockers[locker_index]["pins"]["outlet"], False)
     

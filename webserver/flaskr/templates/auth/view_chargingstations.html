@@ -48,7 +48,7 @@
                 <input type="submit" value="Submit New Values" style="margin-left:auto; margin-right:0">
               </form>
             </div>
-            <div class="collapsible">View Locker Info</div>
+            <div class="collapsible">View Lockers</div>
             <div style="display: none;">
               {% for locker in station['locker_list'] %}
               <div>[{{ locker["index"] }}] - {{ locker["status"]["state"] }}</div>
@@ -62,10 +62,10 @@
                     {% endfor %}
                   </ul>
               </ul>
-              {% endfor %}
-              <form method="GET" action="{{ url_for('user_view.view_charging_stations') }}" style="display:flex; flex-direction:column">
-                <input type="submit" value="Refresh" style="margin-left:auto; margin-right:0">
+              <form method="POST" action="{{ url_for('admin.unlock_locker', cs_id=station['CS_ID'], l_id=locker['index']) }}" style="display:flex; flex-direction:column">
+                <input type="submit" value="Unlock Locker {{ locker['index'] }}" style="margin-left:auto; margin-right:0">
               </form>
+              {% endfor %}
             </div>
             {% endif %}
           </div>

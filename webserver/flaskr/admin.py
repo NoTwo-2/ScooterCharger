@@ -68,7 +68,31 @@ def edit_charging_station(cs_id):
         case _:
             return "Bad Request", 400
 
-# TODO: route to force unlock a locker?
+@bp.route('/unlock-locker/<cs_id>/<l_id>', methods=['POST'])
+def unlock_locker(cs_id, l_id):
+    '''
+    Forcibly unlocks a locker
+    '''
+    if cs_id is None or l_id is None:
+        flash("Incomplete URL.")
+        return redirect(url_for("user_view.view_charging_stations"))
+    
+    cs_id = int(cs_id)
+    l_id = int(l_id)
+    
+    locker = None
+    for cs in connected_clients:
+        if cs.id == cs_id:
+            if l_id < len(cs.locker_list):
+                locker = cs.locker_list[l_id]
+                break
+    if locker is None:
+        flash("The charging station associated with this locker is no longer connected to the server.")
+        return redirect(url_for("user_view.view_charging_stations"))
+    
+    locker.unlock()
+    flash("Sent unlock command to locker.")
+    return redirect(url_for("user_view.view_charging_stations"))
 
 @bp.before_request
 def filter_admin():
