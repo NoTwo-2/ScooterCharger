@@ -53,9 +53,14 @@
               {% for locker in station['locker_list'] %}
               <div>[{{ locker["index"] }}] - {{ locker["status"]["state"] }}</div>
               <ul style="margin: 0px;">
-                <li>Reserved? - {{ locker["reserved"] }}</li>
+                {% if locker["reserved"] %}
+                  <li>Reserved by: {{ locker["user"] }}</li>
+                  <li>Reserved for {{ locker["elapsed_res"] }}</li>
+                {% else %}
+                  <li>Unreserved</li>
+                {% endif %}
                 <li>Most recent reservation time: {{ locker["reserve_time"] }}</li>
-                <li>Additional info:</li>
+                <li>Additional info (as of {{ station["update_time"] }}):</li>
                   <ul>
                     {% for item in locker["status"] %}
                       <li>{{ item }}: {{ locker["status"][item] }}</li>

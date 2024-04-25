@@ -4,6 +4,7 @@ from .events import connected_clients, Locker, ChargingStation
 # from .auth import load_user
 from sqlite3 import Connection
 from flaskr.sqlite_db import get_db
+from datetime import datetime
 
 bp = Blueprint('user_view', __name__)
 
@@ -47,6 +48,7 @@ def view_charging_stations():
                 continue
             # matching connected client
             station["total_lockers"] = len(cs.locker_list)
+            station["update_time"] = cs.last_stat_time.strftime("%a, %d at %I:%M:%S %p")
             locker_avail = 0
             lockers = []
             for lckr in cs.locker_list:
@@ -56,6 +58,13 @@ def view_charging_stations():
                 locker["index"] = lckr.get_index()
                 locker["status"] = lckr.status
                 locker["reserved"] = lckr.is_reserved
+                if lckr.is_reserved:
+                    user_email = db.execute(f"SELECT EMAIL FROM APPUSER WHERE rowid = {lckr.reserver_id}").fetchone()[0]
+                else:
+                    user_email = None
+                locker["user"] = user_email
+                elapsed_hr, elapsed_min, elapsed_sec = lckr.get_elapsed_res_time()
+                locker["elapsed_res"] = f"{elapsed_hr} hours, {elapsed_min} minutes, {elapsed_sec} seconds"
                 locker["reserve_time"] = None if lckr.last_res_time is None else lckr.last_res_time.strftime("%a, %d at %I:%M:%S %p")
                 
                 lockers.append(locker)
@@ -213,9 +222,7 @@ def manage_reservation():
                     if locker.get_index() == locker_i:
                         lckr = locker
             
-            elapsed_minutes, elapsed_seconds = lckr.get_elapsed_res_time()
-            elapsed_hours = int(elapsed_minutes / 60)
-            elapsed_minutes = elapsed_minutes % 60
+            elapsed_hours, elapsed_minutes, elapsed_seconds = lckr.get_elapsed_res_time()
             
             return render_template(
                 'auth/manage_locker.html', 

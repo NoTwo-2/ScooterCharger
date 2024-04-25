@@ -76,15 +76,18 @@ class Locker:
         '''
         return self.parent_station.locker_list.index(self)
     
-    def get_elapsed_res_time(self) -> tuple[int, int]:
+    def get_elapsed_res_time(self) -> tuple[int, int, int]:
         '''
-        Returns the elapsed reservation time as a tuple with the format (minutes, seconds)
+        Returns the elapsed reservation time as a tuple with the format (hours, minutes, seconds)
         '''
+        if not self.is_reserved:
+            return 0,0,0
         current_datetime = datetime.now()
         elapsed_time = current_datetime - self.last_res_time
-        elapsed_minutes = int(elapsed_time.seconds / 60)
+        elapsed_hours = int(elapsed_time.seconds / 3600)
+        elapsed_minutes = int((elapsed_time.seconds % 3600) / 60)
         elapsed_seconds = elapsed_time.seconds % 60
-        return elapsed_minutes, elapsed_seconds
+        return elapsed_hours, elapsed_minutes, elapsed_seconds
     
     def reserve(self, user_id: int) -> bool:
         '''
@@ -176,13 +179,13 @@ def handle_reservation(locker: Locker) -> None:
     # check for reservation
     if not locker.is_reserved:
         return
-    elapsed_minutes, elapsed_seconds = locker.get_elapsed_res_time()
+    elapsed_hours, elapsed_minutes, elapsed_seconds = locker.get_elapsed_res_time()
 
     if elapsed_minutes > TIME_BEFORE_NOTIF:
         user_email = get_user_email(locker.reserver_id)
         subject = "Outstanding scooter locker reservation requires attention!"
         body = (
-            f"You have held your current reservation for {elapsed_minutes} minutes and {elapsed_seconds}.\n"
+            f"You have held your current reservation for {elapsed_hours} hours, {elapsed_minutes} minutes, and {elapsed_seconds}.\n"
             f"Consider retrieving your items and terminating your reservation here: (Link to site)\n"
             f"This email will continue to be sent every {int(STATUS_RATE/60)} minutes until your reservation is terminated"
         )
