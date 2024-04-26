@@ -12,8 +12,9 @@ from .notifs import notify
 SECRET = "dev"
 
 STATUS_RATE = 300 # in seconds
-TIME_BEFORE_NOTIF = 240 # in minutes
 '''Rate the server expects status updates in seconds'''
+TIME_BEFORE_NOTIF = 240 # in minutes
+'''Time before the server reminds the user to retrieve their items in minutes'''
 
 socketio = SocketIO(cors_allowed_origins="*")
 
@@ -109,6 +110,17 @@ class Locker:
             f"WHERE rowid = {user_id}"
         )
         db.commit()
+        
+        # Send confirmation email
+        user_email = get_user_email(user_id)
+        subject = "Locker reservation confirmation"
+        body = (
+            f"Your reservation for locker number {self.get_index()} is now active! " 
+            f"You may now open your locker and manage your reservation here: (link to site)\n\n" # TODO: add link
+            f"Please be sure to retrieve your items and terminate your reservation when finished. "
+            f"You will be sent a reminder email in {TIME_BEFORE_NOTIF} minutes."
+        )
+        notify([user_email], subject, body)
     
     def unreserve(self, reason="User Requested") -> None:
         '''
@@ -130,9 +142,10 @@ class Locker:
                 user_email = get_user_email(self.reserver_id)
                 subject = "Locker reservation terminated"
                 body = (
-                    f"Your active reservation of Locker {self.get_index()} has been terminated for this reason: {reason}.\n"
-                    "If you still have items remaining inside the locker, you will have to re-reserve and open the locker at the website.\n"
-                    "If you are unable to retrieve your items, please contact StuCo immediatley."
+                    f"Your active reservation for locker number {self.get_index()} has been terminated for this reason: {reason}.\n"
+                    f"If you still have items remaining inside the locker, "
+                    f"you will have to re-reserve and open the locker at the website here (link to site)\n" # TODO: add link
+                    f"If you are unable to retrieve your items, please contact StuCo immediatley."
                 )
                 notify([user_email], subject, body)
         

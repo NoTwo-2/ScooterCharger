@@ -1,5 +1,6 @@
 import socketio
 import time, os
+import socketio.exceptions
 from config import server_url, locker_num, id, max_curr, max_temp
 
 try:
@@ -116,17 +117,20 @@ def update_message():
                 unsafe_currs += f"ID: {lockers.index(locker)} - {locker['current']}\n"
         
         # Emit the json event
-        if unsafe_currs == "" and unsafe_temps == "":
-            sio.emit('json', {'status_code': 0, "locker_list": lockers})
-        else:
-            final_message = (
-                f"One or more lockers were disabled due to unsafe conditions\n\n"
-                f"Lockers that exceeded a maximum safe temperature of {max_temp}:\n{unsafe_temps}\n"
-                f"Lockers that exceeded a maximum safe current of {max_curr}:\n{unsafe_currs}"
-            )
-            sio.emit('json', {'status_code': 1, "error_msg": final_message, "locker_list": lockers})
+        try:
+            if unsafe_currs == "" and unsafe_temps == "":
+                sio.emit('json', {'status_code': 0, "locker_list": lockers})
+            else:
+                final_message = (
+                    f"One or more lockers were disabled due to unsafe conditions\n\n"
+                    f"Lockers that exceeded a maximum safe temperature of {max_temp}:\n{unsafe_temps}\n"
+                    f"Lockers that exceeded a maximum safe current of {max_curr}:\n{unsafe_currs}"
+                )
+                sio.emit('json', {'status_code': 1, "error_msg": final_message, "locker_list": lockers})
+        except socketio.exceptions.BadNamespaceError:
+            print(f"Attempted to emit JSON message, got BadNamespaceError")
         
-        print(f"Sent JSON")
+        print(f"Sent JSON {lockers}")
 
 ###############
 # INIT
