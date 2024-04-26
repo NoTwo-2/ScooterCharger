@@ -36,6 +36,8 @@ class ChargingStation:
         self.id = id
         
         self.last_stat_time: datetime = None
+        self.pending_reservations: list[tuple[int, int]] = []
+        '''Formatted like [(user_id, locker_index), ...]'''
     
     def __str__(self) -> str:
         string = (
@@ -48,15 +50,36 @@ class ChargingStation:
     
     def init_lockers(self, num_lockers: int):
         '''
-        Initializes the list of Lockers in this ChargingStation
+        Initializes the list of Lockers in this ChargingStation and applies any database reservations to the corresponding lockers
         '''
         self.locker_list = []
         
+        # Populate locker list with new Lockers
         for _ in range(num_lockers):
             new_locker = Locker(self)
             self.locker_list.append(new_locker)
-            
-            new_locker.unreserve()
+        print(f"SID: {request.sid}, CSID: {self.id} - Num of lockers set to {num_lockers}")
+        
+        # Get list of database reservations for this charging station
+        db = get_db()
+        reses = db.execute(f"SELECT rowid, RESERVED_CS_SPACE_I FROM APPUSER WHERE RESERVED_CS_ID = {self.id}").fetchall()
+        print(f"SID: {request.sid}, CSID: {self.id} - Found {len(reses)} database reservations for this station")
+        
+        # Loop through list of current reservatons and apply them
+        for res in reses:
+            user_id = res["rowid"]
+            locker_i = int(res["RESERVED_CS_SPACE_I"])
+            if locker_i >= num_lockers:
+                db.execute(
+                    f"UPDATE APPUSER "
+                    f"SET RESERVED_CS_ID = NULL, "
+                    f"RESERVED_CS_SPACE_I = NULL "
+                    f"WHERE rowid = {user_id}"
+                )
+                db.commit()
+                print(f"SID: {request.sid}, CSID: {self.id} - User {user_id} requested to reserve invalid locker {locker_i}")
+                continue
+            self.locker_list[locker_i].reserve(user_id)
 
 class Locker:
     def __init__(
@@ -121,6 +144,8 @@ class Locker:
             f"You will be sent a reminder email in {TIME_BEFORE_NOTIF} minutes."
         )
         notify([user_email], subject, body)
+        
+        print(f"CSID: {self.parent_station.id} - User {user_id} reserved locker {self.get_index()}")
     
     def unreserve(self, reason="User Requested") -> None:
         '''
@@ -148,6 +173,7 @@ class Locker:
                     f"If you are unable to retrieve your items, please contact StuCo immediatley."
                 )
                 notify([user_email], subject, body)
+        print(f"CSID: {self.parent_station.id} - User {self.reserver_id} unreserved locker {self.get_index()}")
         
         self.is_reserved = False
         self.reserver_id = None
@@ -218,7 +244,7 @@ def handle_new_connection(id: int = None) -> int:
         cursor.execute(f"INSERT INTO CHARGING_STATION(CS_LAST_UPDATE) VALUES ('{current_datetime}')")
         rowid = cursor.lastrowid
         db.commit()
-        print(f"  No ID given, assigned CSID: {rowid}")
+        print(f"SID: {request.sid} - No ID given, assigned CSID: {rowid}")
         return rowid
     
     # Case: An ID is given but no db entry exists - Action: Create new entry with this ID and return the ID
@@ -227,7 +253,7 @@ def handle_new_connection(id: int = None) -> int:
         cursor = db.cursor()
         cursor.execute(f"INSERT INTO CHARGING_STATION(CS_ID, CS_LAST_UPDATE) VALUES ({id}, '{current_datetime}')")
         db.commit()
-        print(f"  ID: {id} given, new DB entry created, assigned CSID: {id}")
+        print(f"SID: {request.sid} - ID of {id} given, new DB entry created, assigned CSID: {id}")
         return id
     
     # Case: An ID is given, there is a db entry, but there is a live connection using this entry - Action: Create new entry and return auto-generated ID
@@ -241,12 +267,12 @@ def handle_new_connection(id: int = None) -> int:
         cursor.execute(f"INSERT INTO CHARGING_STATION(CS_LAST_UPDATE) VALUES ('{current_datetime}')")
         rowid = cursor.lastrowid
         db.commit()
-        print(f"  ID: {id} given but DB entry already in use, new DB entry created, assigned CSID: {rowid}")
+        print(f"SID: {request.sid} - ID of {id} given but DB entry already in use, new DB entry created, assigned CSID: {rowid}")
         return rowid
     
     # Case: An ID is given, there is a db entry, and there is no live connection using this entry - Action: return id
     # PYLANCE IS WRONG WHEN IT SAYS THIS CODE IS UNREACHABLE - IT VERY MUCH IS!
-    print(f"  ID: {id} given, assigned CSID: {id}")
+    print(f"SID: {request.sid} - ID of {id} given, assigned CSID: {id}")
     return id
 
 ################
@@ -273,7 +299,6 @@ def handle_init(json):
         disconnect()
         return
     
-    print(f"SID: {request.sid} - Assigning locker ID...")
     id = None if not ("id" in json.keys()) else json["id"]
     charging_station.id = handle_new_connection(id)
     
@@ -286,9 +311,21 @@ def handle_init(json):
 @socketio.on("disconnect")
 def handle_disconnect():
     charging_station = resolve_sid(request.sid)
+    
+    # Notify all users who have an active reservation 
     for locker in charging_station.locker_list:
-        if locker.is_reserved:
-            locker.unreserve(reason="Charging Station Has Shut Down")
+        if not locker.is_reserved:
+            continue
+        user_email = get_user_email(locker.reserver_id)
+        subject = "IMPORTANT - Reserved locker has been disconnected from the server"
+        body = (
+            f"Your activley reserved locker number {locker.get_index()} has been disabled due to being disconnected from the server.\n"
+            f"While your locker remains disabled, you will not be unable to unlock the locker door via the website. "
+            f"Your reservation will remain active, and normal operation will resume once the station is reconnected to the server.\n\n"
+            f"You will receive an email when the station is re-connected and access to your locker is re-instated.\n"
+            f"If you have any questions, please contact StuCo."
+        )
+        notify([user_email], subject, body)
         
     # remove from connected clients
     connected_clients.remove(charging_station)
@@ -336,7 +373,6 @@ def handle_json(json):
     # Handle locker number
     if len(locker_list) != len(charging_station.locker_list):
         charging_station.init_lockers(len(locker_list))
-        print(f"SID: {request.sid}, CSID: {charging_station.id} - Num of lockers set to {len(locker_list)}")
     
     # Handle locker info
     for i in range(len(locker_list)):
@@ -355,8 +391,8 @@ def handle_json(json):
                 subject = "IMPORTANT - Reserved locker has been disabled due to unsafe operating conditions"
                 body = (
                     f"Your activley reserved locker number {locker.get_index()} has been disabled due to unsafe operating conditions.\n"
-                    f"While your locker remains disabled, you will be unable to unlock the locker door via the website. "
-                    f"Your reservation will remain active, and normal operation will resume once operating conditions return to normal.\n\n"
+                    f"While your locker remains disabled, you will not be unable to unlock the locker door via the website. "
+                    f"Your reservation will remain active, and normal functionality will resume once operating conditions return to normal.\n\n"
                     f"Please periodically check your reservation here: (link to site)\n" # TODO: add link
                     f"If you have any questions, please contact StuCo."
                 )

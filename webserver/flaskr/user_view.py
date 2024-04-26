@@ -87,7 +87,6 @@ def view_charging_stations():
 
 @bp.route('/view-lockers')
 def show_available_lockers():
-    # TODO: add admin view for this, too
     station_id = request.args.get('station_id')
     if station_id is None:
         flash("Incomplete URL.")
@@ -194,9 +193,6 @@ def manage_reservation():
                 if locker_i >= len(cs.locker_list):
                     break
                 lckr = cs.locker_list[locker_i]
-            if not lckr:
-                flash("CRITICAL ERROR: Reserved locker is no longer connected to the server!")
-                return redirect(url_for("user_view.show_available_lockers"))
 
             # Deal with action
             match action:
@@ -207,7 +203,16 @@ def manage_reservation():
                     flash("Sent unlock command to locker.")
                     return redirect('/manage-locker')
                 case 'unreserve':
-                    lckr.unreserve()
+                    if not lckr:
+                        db.execute(
+                            f"UPDATE APPUSER "
+                            f"SET RESERVED_CS_ID = NULL, "
+                            f"RESERVED_CS_SPACE_I = NULL "
+                            f"WHERE rowid = {user_id}"
+                        )
+                        db.commit()
+                    else:
+                        lckr.unreserve()
                     flash("Successfully unreserved locker.")
                     return redirect('/home')
                 case _:
@@ -224,13 +229,18 @@ def manage_reservation():
                     if locker.get_index() == locker_i:
                         lckr = locker
             
-            elapsed_hours, elapsed_minutes, elapsed_seconds = lckr.get_elapsed_res_time()
+            if lckr:
+                elapsed_hours, elapsed_minutes, elapsed_seconds = lckr.get_elapsed_res_time()
+                disabled = lckr.status["state"] != "good"
+            else:
+                elapsed_hours, elapsed_minutes, elapsed_seconds = 0,0,0
+                disabled = True
             
             return render_template(
                 'auth/manage_locker.html', 
                 charging_station=charging_station, 
                 locker_id=locker_i, 
-                disabled=lckr.status["state"] != "good", 
+                disabled=disabled, 
                 elapsed_hours=elapsed_hours,
                 elapsed_minutes=elapsed_minutes,
                 elapsed_seconds=elapsed_seconds

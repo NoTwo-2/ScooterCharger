@@ -59,6 +59,12 @@ def edit_charging_station(cs_id):
             
             db = get_db()
             db.execute(
+                f"UPDATE APPUSER "
+                f"SET RESERVED_CS_ID = NULL, "
+                f"RESERVED_CS_SPACE_I = NULL "
+                f"WHERE RESERVED_CS_ID = {cs_id}"
+            )
+            db.execute(
                 f"DELETE FROM CHARGING_STATION "
                 f"WHERE CS_ID = {cs_id}"
             )
