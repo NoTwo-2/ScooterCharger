@@ -100,6 +100,32 @@ def unlock_locker(cs_id, l_id):
     flash("Sent unlock command to locker.")
     return redirect(url_for("user_view.view_charging_stations"))
 
+@bp.route('/terminate-reservation/<cs_id>/<l_id>', methods=['POST'])
+def terminate_reservation(cs_id, l_id):
+    '''
+    Forcibly terminates an active reservation.
+    '''
+    if cs_id is None or l_id is None:
+        flash("Incomplete URL.")
+        return redirect(url_for("user_view.view_charging_stations"))
+    
+    cs_id = int(cs_id)
+    l_id = int(l_id)
+    
+    locker = None
+    for cs in connected_clients:
+        if cs.id == cs_id:
+            if l_id < len(cs.locker_list):
+                locker = cs.locker_list[l_id]
+                break
+    if locker is None:
+        flash("The charging station associated with this locker is no longer connected to the server.")
+        return redirect(url_for("user_view.view_charging_stations"))
+    
+    locker.unreserve(reason="Admin Requested Termination")
+    flash("Successfully unreserved locker.")
+    return redirect(url_for("user_view.view_charging_stations"))
+    
 @bp.before_request
 def filter_admin():
     '''

@@ -32,9 +32,10 @@
               <input type="submit" value="Reserve a Locker" style="margin-left:auto; margin-right:0">
             </form>
             {% if admin %}
-            <h2>Admin Tools</h2>
+            <h2 style="margin-bottom: 0px;">Admin Tools</h2>
+            <hr>
             <div>Last Update Time: {{ station['CS_LAST_UPDATE'] }}</div>
-            <div class="collapsible">Edit Values</div>
+            <div class="collapsible">Edit</div>
             <div style="display:none;">
               <form method="POST" action="{{ url_for('admin.edit_charging_station', cs_id=station['CS_ID']) }}" style="display:flex; flex-direction:column">
                 <input type="hidden" name="action" value="POST">
@@ -48,28 +49,36 @@
                 <input type="submit" value="Submit New Values" style="margin-left:auto; margin-right:0">
               </form>
             </div>
-            <div class="collapsible">View Lockers</div>
+            <div class="collapsible">Lockers</div>
             <div style="display: none;">
+              <hr>
               {% for locker in station['locker_list'] %}
-              <div>[{{ locker["index"] }}] - {{ locker["status"]["state"] }}</div>
-              <ul style="margin: 0px;">
-                {% if locker["reserved"] %}
-                  <li>Reserved by: {{ locker["user"] }}</li>
-                  <li>Reserved for {{ locker["elapsed_res"] }}</li>
-                {% else %}
-                  <li>Unreserved</li>
-                {% endif %}
+              <div class="collapsible">[{{ locker["index"] }}] - {{ locker["status"]["state"] }}</div>
+              <ul style="margin: 0px; display: none;">
+                <li>Reserved: {{ locker["reserved"] }}</li>
                 <li>Most recent reservation time: {{ locker["reserve_time"] }}</li>
                 <li>Additional info (as of {{ station["update_time"] }}):</li>
                   <ul>
                     {% for item in locker["status"] %}
-                      <li>{{ item }}: {{ locker["status"][item] }}</li>
+                    <li>{{ item }}: {{ locker["status"][item] }}</li>
                     {% endfor %}
                   </ul>
+                <form method="POST" action="{{ url_for('admin.unlock_locker', cs_id=station['CS_ID'], l_id=locker['index']) }}" style="display:flex; flex-direction:column">
+                  <input type="submit" value="Unlock Locker" style="margin-left:auto; margin-right:0">
+                </form>
+                {% if locker["reserved"] %}
+                <div class="collapsible">Active Reservation</div>
+                <div style="display: none;">
+                  <ul style="margin: 0px;">
+                    <li>Reserved by: {{ locker["user"] }}</li>
+                    <li>Reserved for {{ locker["elapsed_res"] }}</li>
+                  </ul>
+                  <form method="POST" action="{{ url_for('admin.terminate_reservation', cs_id=station['CS_ID'], l_id=locker['index']) }}" style="display:flex; flex-direction:column">
+                    <input type="submit" value="Terminate Reservation" style="margin-left:auto; margin-right:0; background-color:#AD2327; color:white">
+                  </form>
+                </div>
+                {% endif %}
               </ul>
-              <form method="POST" action="{{ url_for('admin.unlock_locker', cs_id=station['CS_ID'], l_id=locker['index']) }}" style="display:flex; flex-direction:column">
-                <input type="submit" value="Unlock Locker {{ locker['index'] }}" style="margin-left:auto; margin-right:0">
-              </form>
               {% endfor %}
             </div>
             {% endif %}
@@ -90,8 +99,9 @@
             <div class="collapsible">Show in Google Maps</div>
             <iframe src="{{ station['CS_GMAPS_LINK'] }}&output=embed" width="100%" height="450" frameborder="0" style="border:0; display:none; margin-bottom:5px;" allow="fullscreen"></iframe>
             <div>Last Update Time: {{ station['CS_LAST_UPDATE'] }}</div>
-            <h2>Admin Tools</h2>
-            <div class="collapsible">Edit Values</div>
+            <h2 style="margin-bottom: 0px;">Admin Tools</h2>
+            <hr>
+            <div class="collapsible">Edit</div>
             <div style="display:none;">
               <form method="POST" action="{{ url_for('admin.edit_charging_station', cs_id=station['CS_ID']) }}" style="display:flex; flex-direction:column">
                 <input type="hidden" name="action" value="POST">
