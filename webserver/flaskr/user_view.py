@@ -201,6 +201,8 @@ def manage_reservation():
             # Deal with action
             match action:
                 case 'open':
+                    if lckr.status["state"] != "good":
+                        return "Bad Request", 400
                     lckr.unlock()
                     flash("Sent unlock command to locker.")
                     return redirect('/manage-locker')
@@ -228,7 +230,7 @@ def manage_reservation():
                 'auth/manage_locker.html', 
                 charging_station=charging_station, 
                 locker_id=locker_i, 
-                state=lckr.status["state"], 
+                disabled=lckr.status["state"] != "good", 
                 elapsed_hours=elapsed_hours,
                 elapsed_minutes=elapsed_minutes,
                 elapsed_seconds=elapsed_seconds

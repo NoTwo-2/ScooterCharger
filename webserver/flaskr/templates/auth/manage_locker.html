@@ -18,16 +18,25 @@
       <div class="collapsible" style="align-items: center; width: 100%;">Show in Google Maps</div>
       <iframe src="{{ charging_station['CS_GMAPS_LINK'] }}&output=embed" width="100%" height="450" frameborder="0" style="border:0; display:none; margin-bottom:5px;" allow="fullscreen"></iframe>
       <h3>Locker ID: {{ locker_id }}</h3>
-      <div>State: {{ state }}</div>
       <div>Reserved for {{ elapsed_hours }} hours, {{ elapsed_minutes }} minutes, and {{ elapsed_seconds }} seconds</div>
       {% if not g.user %}
       <p>Please login to manage your reservations.</p>
       {% else %}
       <hr width="100%">
+      {% if not disabled %}
       <form method="POST" action="/manage-locker">
         <input type="hidden" name="action" value="open"> 
         <input type="submit" value="Open Locker">
       </form>
+      {% else %}
+      <div>
+        This locker is under unsafe operating conditions and is unable to be opened. 
+        Please try again later or contact StuCo if the problem persists.
+      </div>
+      <form method="javascript:void(0)">
+        <input type="submit" value="Cannot Open Locker" style="background-color:#D6D1CA;">
+      </form>
+      {% endif %}
       <hr width="100%">
       <form action="javascript:void(0)" onclick="getElementById('modal').style.display = 'block'">
         <input type="submit" value="Cancel Reservation" style="background-color:#AD2327; color:white">

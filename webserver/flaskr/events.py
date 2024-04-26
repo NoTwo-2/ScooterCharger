@@ -349,9 +349,17 @@ def handle_json(json):
         # Check for non-good state
         if locker.status["state"] != "good":
             print(f"SID: {request.sid}, CSID: {charging_station.id} - Locker {locker.get_index()} has been disabled, reservations terminated")
-            # TODO: Notify users of updated state
+            # NOTE: Should we do this?
             if locker.is_reserved:
                 user_email = get_user_email(locker.reserver_id)
-                pass
+                subject = "IMPORTANT - Reserved locker has been disabled due to unsafe operating conditions"
+                body = (
+                    f"Your activley reserved locker number {locker.get_index()} has been disabled due to unsafe operating conditions.\n"
+                    f"While your locker remains disabled, you will be unable to unlock the locker door via the website. "
+                    f"Your reservation will remain active, and normal operation will resume once operating conditions return to normal.\n\n"
+                    f"Please periodically check your reservation here: (link to site)\n" # TODO: add link
+                    f"If you have any questions, please contact StuCo."
+                )
+                notify([user_email], subject, body)
     
     #print(charging_station)
