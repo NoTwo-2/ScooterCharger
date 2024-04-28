@@ -40,7 +40,7 @@ body {
 
 .form-container form input[type=submit] {
   font-size: 20px;
-  background-color: #72BF44;
+  background-color: #007A33;
   border-color: #003B49;
   cursor: pointer;
   margin-bottom: 10px;
@@ -69,6 +69,20 @@ body {
   animation-duration: 4s;
 }
 
+.flash.info {
+  background-color: #007A33; /* Green for success messages */
+  color: #B3B4B2;
+}
+
+.flash.error {
+  background-color: #AD2327; /* Red for error messages */
+  color: #B3B4B2;
+}
+
+.flash.warning {
+  background-color: #B1E4E3; /* blue for info/warnings messages */
+  color: #63666A;
+}
 /* =============================================================================
  * CHARGING STATION LIST PAGE STYLING
  * =============================================================================
@@ -150,19 +164,20 @@ body {
 
 .landing-page-container {
   align-items: center;
-  background-image: url("images/authentication_page_background.png");
-  background-position: center center;
+  background-image: url("images/S\ and\ T\ logo.PNG"), url("images/Header.png"), url("images/Footer.png");
+  background-position: left 19.95% top -2px, top center, bottom center; 
   background-repeat: no-repeat;
-  background-size: cover;
+  background-size: 12vh, 100% 50vh, auto; 
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  justify-content: flex-start; /* Change to flex-start to align content to the top */
-  padding-top: 80px; 
+  justify-content: flex-start; 
+  padding-top: 80px;
+  min-height: 100vh; 
 }
 
 .form-container {
   width: 80%;
+  margin-bottom: 200px; /* Add margin at the bottom to prevent content overlap with the footer */
 }
 
 .form1 {
@@ -286,7 +301,7 @@ body {
   background-image: url("images/login_page_background.png");
   background-position: center;
   background-repeat: no-repeat;
-  background-size: auto 115%;
+  background-size: auto 120%;
   bottom: 2%;
   top: 5%;
   display: flex;
@@ -301,23 +316,36 @@ body {
   align-items: center;
   display: flex;
   flex-direction: column;
-  margin: 150px 80px 100px 60px;
+  position: relative;
+  margin: 140px 80px 50px 60px;
 }
 
 .login-page-container .form-container form.form2{
   align-items: center;
   display: flex;
   flex-direction: column;
-
 }
 
 .login-page-container .form-container form h1 {
   font-size: 30px;
+  color: white;
+  text-shadow: -1px -1px 0 #003B49,  
+  1px -1px 0 #003B49,
+ -1px  1px 0 #003B49,
+  1px  1px 0 #003B49;
   margin-bottom: 10px;
 }
+.login-page-container .form-container form p{
+  color: #72BF44;
 
+}
 .login-page-container .form-container form input {
   font-size: 20px;
+  color: white;
+  text-shadow: -1px -1px 0 #003B49,  
+  1px -1px 0 #003B49,
+ -1px  1px 0 #003B49,
+  1px  1px 0 #003B49;
   margin-bottom: 20px;
   max-width: 250px;
 }

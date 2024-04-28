@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block title %}Lockers{% endblock %}
+
+{% block content %}
+  <div class="landing-page-container">
+    <div class="form-container">
+      <form method="post" class="form1">
+        <h1>Change email</h1>
+        <form action="{{ url_for('admin.change_email') }}" method="post">
+            <label for="new_email">New Email:</label>
+            <input type="text" id="new_email" name="new_email" placeholder="New email"required>
+            <button type="submit">Change Email</button>
+      </form>
+      <div style="text-align: center;">
+        <a href="{{ url_for('admin.home') }}">Back to Home</a>
+      </div>
+    </form>
+    </div>
+  </div>
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+      {% for category, message in messages %}
+          <div class="flash {{ category }}">
+              {{ message }}
+          </div>
+      {% endfor %}
+  {% endif %}
+{% endwith %}
+{% endblock %}
+

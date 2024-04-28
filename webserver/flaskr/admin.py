@@ -4,9 +4,24 @@ from flask import Blueprint, g, request, redirect, url_for, session, render_temp
 
 from flaskr.sqlite_db import get_db
 from .events import connected_clients, Locker, ChargingStation
+from flask_mail import Message, Mail
+import secrets
 
 bp = Blueprint('admin', __name__, url_prefix='/admin')
+mail = Mail()
+#generate a token for email
+def generate_verification_token():
+    return secrets.token_urlsafe(16)
 
+#send verification email
+def send_verification_email(email, token):
+    msg = Message(
+        'Verify Your Email',
+        sender='e4228557@gmail.com',
+        recipients=[email]
+    )
+    msg.body = f'Click the link to verify your email: {url_for("auth.verify_email", token=token, _external=True)}'
+    mail.send(msg)
 @bp.route('/home', methods=['GET'])
 def home():
     '''
@@ -31,7 +46,7 @@ def edit_charging_station(cs_id):
     match request.form["action"]:
         case 'POST':
             if cs_id is None:
-                flash("Incomplete URL.")
+                flash("Incomplete URL.","error")
                 return redirect(url_for("user_view.view_charging_stations"))
             
             cs_name = request.form['cs_name']
@@ -51,7 +66,7 @@ def edit_charging_station(cs_id):
                 f"WHERE CS_ID = {cs_id}"
             )
             db.commit()
-            flash("Successfully changed charging station information!")
+            flash("Successfully changed charging station information!","info")
             return redirect(url_for('user_view.view_charging_stations'))
         case 'DELETE':
             if cs_id is None:
@@ -69,7 +84,7 @@ def edit_charging_station(cs_id):
                 f"WHERE CS_ID = {cs_id}"
             )
             db.commit()
-            flash("Successfully deleted charging station.")
+            flash("Successfully deleted charging station.","info")
             return redirect(url_for('user_view.view_charging_stations'))
         case _:
             return "Bad Request", 400
@@ -80,7 +95,7 @@ def unlock_locker(cs_id, l_id):
     Forcibly unlocks a locker
     '''
     if cs_id is None or l_id is None:
-        flash("Incomplete URL.")
+        flash("Incomplete URL.","error")
         return redirect(url_for("user_view.view_charging_stations"))
     
     cs_id = int(cs_id)
@@ -93,11 +108,11 @@ def unlock_locker(cs_id, l_id):
                 locker = cs.locker_list[l_id]
                 break
     if locker is None:
-        flash("The charging station associated with this locker is no longer connected to the server.")
+        flash("The charging station associated with this locker is no longer connected to the server.","warning")
         return redirect(url_for("user_view.view_charging_stations"))
     
     locker.unlock()
-    flash("Sent unlock command to locker.")
+    flash("Sent unlock command to locker.","info")
     return redirect(url_for("user_view.view_charging_stations"))
 
 @bp.route('/terminate-reservation/<cs_id>/<l_id>', methods=['POST'])
@@ -106,7 +121,7 @@ def terminate_reservation(cs_id, l_id):
     Forcibly terminates an active reservation.
     '''
     if cs_id is None or l_id is None:
-        flash("Incomplete URL.")
+        flash("Incomplete URL.","error")
         return redirect(url_for("user_view.view_charging_stations"))
     
     cs_id = int(cs_id)
@@ -119,22 +134,55 @@ def terminate_reservation(cs_id, l_id):
                 locker = cs.locker_list[l_id]
                 break
     if locker is None:
-        flash("The charging station associated with this locker is no longer connected to the server.")
+        flash("The charging station associated with this locker is no longer connected to the server.","warning")
         return redirect(url_for("user_view.view_charging_stations"))
     
     locker.unreserve(reason="Admin Requested Termination")
-    flash("Successfully unreserved locker.")
+    flash("Successfully unreserved locker.","info")
     return redirect(url_for("user_view.view_charging_stations"))
-    
+
+@bp.route('/change-email', methods=['GET', 'POST'])
+def change_email():
+    match request.method:
+        case 'POST':
+            db = get_db()
+            new_email = request.form['new_email']
+            # Validate the new email address
+            verification_token = generate_verification_token()
+            try:
+                db.execute(
+                    f"UPDATE APPUSER SET EMAIL = '{new_email}', VERIFICATION_TOKEN = '{verification_token}' WHERE ACCESS_TYPE = 'ADMIN'"
+                )
+                db.commit()
+            except db.IntegrityError:
+                flash("An account associated with this email already exists.", "warning")
+                return redirect(url_for("admin.change_email"))
+            else:
+                try:
+                    send_verification_email(new_email, verification_token)
+                except ValueError:
+                    flash(f"Unable to send verification email to {new_email}, check the validity of your email and try again", "error")
+                    return redirect(url_for("admin.change_email"))
+                except:
+                    flash(f"check the validity of your email and try again", "error")
+                    return redirect(url_for("admin.change_email"))
+                else:
+                    flash('Email updated successfully! A verification link has been sent to your new email.', 'info')
+                    return redirect(url_for("auth.login"))
+        case 'GET':
+            return render_template("auth/change_email.html")
+        case _:
+            return "Bad Request", 400
+ 
 @bp.before_request
 def filter_admin():
     '''
     Redirects if session user is not an admin
     '''
     if not g.user:
-        flash("Please login!")
+        flash("Please login!","warning")
         return redirect("/auth/login")
     access = g.user["ACCESS_TYPE"]
     if access != "ADMIN":
-        flash("You aren't authorized to perform this action.")
+        flash("You aren't authorized to perform this action.","error")
         return redirect("/home")

@@ -89,7 +89,7 @@ def view_charging_stations():
 def show_available_lockers():
     station_id = request.args.get('station_id')
     if station_id is None:
-        flash("Incomplete URL.")
+        flash("Incomplete URL.","error")
         return redirect(url_for("user_view.view_charging_stations"))
     station_id = int(station_id)
     # list of dictionaries (cs table + num_lockers)
@@ -106,7 +106,7 @@ def show_available_lockers():
             cs = client
     
     if cs is None:
-        flash("The charging station associated with this locker is no longer connected to the server.")
+        flash("The charging station associated with this locker is no longer connected to the server.","warning")
         return redirect(url_for("user_view.view_charging_stations"))
     
     # construct locker dicts
@@ -139,7 +139,7 @@ def reserve_locker():
             db = get_db()
             result = get_locker_reserved(db, user_id)
             if not (result is None):
-                flash("You already have an existing reservation!")
+                flash("You already have an existing reservation!","warning")
                 return redirect('/manage-locker')
             cs_id = int(request.form["station_id"])
             locker_i = int(request.form["locker_id"])
@@ -150,16 +150,16 @@ def reserve_locker():
                     charger = client
                     break
             if not charger or not charger.locker_list:
-                flash("Requested locker is no longer connected. Please try again.")
+                flash("Requested locker is no longer connected. Please try again.","warning")
                 return redirect('/view-charging-stations')
             # find available locker
             lckr: Locker = charger.locker_list[locker_i]
             if lckr.is_reserved or (lckr.status["state"] != "good"):
-                flash("Requested locker is no longer available. Please try again.")
+                flash("Requested locker is no longer available. Please try again.","warning")
                 return redirect('/view-charging-stations')
             # start reservation
             lckr.reserve(user_id)
-            flash("Locker successfully reserved!")
+            flash("Locker successfully reserved!","info")
             return redirect('/manage-locker')
         case _:
             flash("???")
@@ -176,7 +176,7 @@ def manage_reservation():
     db = get_db()
     result = get_locker_reserved(db, user_id)
     if result is None:
-        flash("No active reservation found.")
+        flash("No active reservation found.","warning")
         return redirect(url_for("user_view.view_charging_stations"))
     cs_id, locker_i = result
     
@@ -200,7 +200,7 @@ def manage_reservation():
                     if lckr.status["state"] != "good":
                         return "Bad Request", 400
                     lckr.unlock()
-                    flash("Sent unlock command to locker.")
+                    flash("Sent unlock command to locker.","info")
                     return redirect('/manage-locker')
                 case 'unreserve':
                     if not lckr:
@@ -213,7 +213,7 @@ def manage_reservation():
                         db.commit()
                     else:
                         lckr.unreserve()
-                    flash("Successfully unreserved locker.")
+                    flash("Successfully unreserved locker.","info")
                     return redirect('/home')
                 case _:
                     flash("???")
@@ -273,5 +273,5 @@ def filter_admin():
     Redirects if session user is not an admin
     '''
     if not g.user:
-        flash("Please login or create an account.")
+        flash("Please login or create an account.","warning")
         return redirect("/auth/login")

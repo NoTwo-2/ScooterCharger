@@ -50,7 +50,7 @@ def register():
             password = request.form['password']
             
             if not access_type or not email or not password:
-                flash("One or more required fields was not filled. Please try again.")
+                flash("One or more required fields was not filled. Please try again.", "warning")
                 return redirect(url_for("auth.register"))
             if not (access_type in [at.name for at in AccessType]):
                 access_type = AccessType(0).name
@@ -63,16 +63,19 @@ def register():
                 )
                 db.commit()
             except db.IntegrityError:
-                flash("An account associated with this email already exists.")
+                flash("An account associated with this email already exists.", "warning")
                 return redirect(url_for("auth.register"))
             else:
                 try:
                     send_verification_email(email, verification_token)
                 except ValueError:
-                    flash(f"Unable to send verification email to {email}, check the validity of your email and try again")
+                    flash(f"Unable to send verification email to {email}, check the validity of your email and try again", "error")
+                    return redirect(url_for("auth.register"))
+                except:
+                    flash(f"check the validity of your email and try again", "error")
                     return redirect(url_for("auth.register"))
                 else:
-                    flash("An email with a verification link has been sent to your email address. Please verify your email.")
+                    flash("An email with a verification link has been sent to your email address. Please verify your email.", "info")
                     return redirect(url_for("auth.login"))
         case 'GET':
             return render_template("auth/register.html")
@@ -88,14 +91,14 @@ def verify_email(token):
         (token,)
     ).fetchone()
     if user is None:
-        flash("Invalid verification token.")
+        flash("Invalid verification token.", "error")
         return redirect(url_for("auth.login"))
     db.execute(
         "UPDATE APPUSER SET IS_VERIFIED = 1 WHERE EMAIL = ?",
         (user['EMAIL'],)
     )
     db.commit()
-    flash("Your email has been successfully verified. You can now log in.")
+    flash("Your email has been successfully verified. You can now log in.", "info")
     return redirect(url_for("auth.login"))
      
 @bp.route('/login', methods=('GET', 'POST'))
@@ -112,14 +115,14 @@ def login():
             
             user = db.execute(f"SELECT rowid, * FROM APPUSER WHERE EMAIL = '{email}'").fetchone()
             if user is None:
-                flash("Could not find an account associated with this email.")
+                flash("Could not find an account associated with this email.", "error")
                 return redirect(url_for("auth.login"))
             if user['IS_VERIFIED'] != 1:
-                flash("You have not verified your email")
+                flash("You have not verified your email", "warning")
                 return redirect(url_for("auth.login"))
             password_correct = check_password_hash(user['PASSKEY'], password)
             if not password_correct:
-                flash("Incorrect email or password.")
+                flash("Incorrect email or password.", "warning")
                 return redirect(url_for("auth.login"))
             
             # JWT REPLACEMENT!
@@ -127,9 +130,9 @@ def login():
             session[USER_ID_COOKIE] = user['rowid']
             # if user is admin
             if user['ACCESS_TYPE'] == "ADMIN":
-                flash("Login successful! Welcome, admin user!")
+                flash("Login successful! Welcome, admin user!", "info")
                 return redirect(url_for("admin.home"))
-            flash("Login successful!")
+            flash("Login successful!", "info")
             return redirect(url_for("user_view.home"))
         case 'GET':
             return render_template("auth/login.html")

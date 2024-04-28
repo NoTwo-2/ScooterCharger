@@ -129,7 +129,30 @@
       </div>
     </div>
   </div>
-  {% for message in get_flashed_messages() %}
-    <div class="flash">{{ message }}</div> 
-  {% endfor %}
+  <div style="position: relative;">
+    {% if admin %}
+    <form method="GET" action="{{ url_for('admin.change_email') }}" style="position: absolute; top: -1030px; right: 20px;">
+      <button type="submit" style="background-color: #72BF44; /* Green */
+      border: none;
+      color: white;
+      padding: 15px 32px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 16px;
+      margin: 4px 2px;
+      cursor: pointer;
+      border-radius: 8px;">Change Email</button>
+    </form>
+    {% endif %}
+  </div>
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+      {% for category, message in messages %}
+          <div class="flash {{ category }}">
+              {{ message }}
+          </div>
+      {% endfor %}
+  {% endif %}
+{% endwith %}
 {% endblock %}
