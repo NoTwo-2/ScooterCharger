@@ -8,9 +8,11 @@ from flaskr.sqlite_db import get_db
 
 from enum import Enum
 
-from flask_mail import Message, Mail
+from .notifs import notify
 
 import secrets
+
+from smtplib import SMTPAuthenticationError
 
 bp = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -21,20 +23,16 @@ class AccessType(Enum):
     STUDENT = 0
     ADMIN = 1
     BOX = 2
-mail = Mail()
+
 #generate a token for email
 def generate_verification_token():
     return secrets.token_urlsafe(16)
 
 #send verification email
 def send_verification_email(email, token):
-    msg = Message(
-        'Verify Your Email',
-        sender='e4228557@gmail.com',
-        recipients=[email]
-    )
-    msg.body = f'Click the link to verify your email: {url_for("auth.verify_email", token=token, _external=True)}'
-    mail.send(msg)
+    subject = 'Verify Your Email'
+    body = f'Click the link to verify your email: {url_for("auth.verify_email", token=token, _external=True)}'
+    notify([email], subject, body)
 
 @bp.route('/register', methods=('GET', 'POST'))
 def register():
@@ -58,21 +56,21 @@ def register():
             passkey = generate_password_hash(password)
             
             try:
-                db.execute(
-                    f"INSERT INTO APPUSER (ACCESS_TYPE, EMAIL, PASSKEY, VERIFICATION_TOKEN) VALUES ('{access_type}', '{email}', '{passkey}', '{verification_token}')"
-                )
-                db.commit()
-            except db.IntegrityError:
-                flash("An account associated with this email already exists.", "warning")
+                print("sending email")
+                send_verification_email(email, verification_token)
+            except (ValueError, SMTPAuthenticationError):
+                print("except caught")
+                flash(f"Unable to send verification email to {email}, check the validity of your email and try again", "error")
                 return redirect(url_for("auth.register"))
             else:
+                print("except not caught")
                 try:
-                    send_verification_email(email, verification_token)
-                except ValueError:
-                    flash(f"Unable to send verification email to {email}, check the validity of your email and try again", "error")
-                    return redirect(url_for("auth.register"))
-                except:
-                    flash(f"check the validity of your email and try again", "error")
+                    db.execute(
+                        f"INSERT INTO APPUSER (ACCESS_TYPE, EMAIL, PASSKEY, VERIFICATION_TOKEN) VALUES ('{access_type}', '{email}', '{passkey}', '{verification_token}')"
+                    )
+                    db.commit()
+                except db.IntegrityError:
+                    flash("An account associated with this email already exists.", "warning")
                     return redirect(url_for("auth.register"))
                 else:
                     flash("An email with a verification link has been sent to your email address. Please verify your email.", "info")

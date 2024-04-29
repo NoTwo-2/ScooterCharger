@@ -1,4 +1,4 @@
-from flask import Flask, request
+from flask import Flask, request, url_for
 
 from flask_socketio import SocketIO, emit, disconnect, send
 
@@ -11,7 +11,7 @@ from .notifs import notify
 # TODO: Use .env or something similar to handle this
 SECRET = "dev"
 
-STATUS_RATE = 300 # in seconds
+STATUS_RATE = 10 # in seconds
 '''Rate the server expects status updates in seconds'''
 TIME_BEFORE_NOTIF = 240 # in minutes
 '''Time before the server reminds the user to retrieve their items in minutes'''
@@ -91,6 +91,7 @@ class Locker:
         self.last_res_time: datetime = None
         
         self.status: dict = {"state" : "good"}
+        self.last_status: dict = {"state" : "good"}
     
     def get_index(self) -> int:
         '''
@@ -137,7 +138,7 @@ class Locker:
         subject = "Locker reservation confirmation"
         body = (
             f"Your reservation for locker number {self.get_index()} is now active! " 
-            f"You may now open your locker and manage your reservation here: (link to site)\n\n" # TODO: add link
+            f"You may now open your locker and manage your reservation here: {url_for("user_view.manage_reservation", _external=True)}\n\n"
             f"Please be sure to retrieve your items and terminate your reservation when finished. "
             f"You will be sent a reminder email in {TIME_BEFORE_NOTIF} minutes."
         )
@@ -167,7 +168,7 @@ class Locker:
                 body = (
                     f"Your active reservation for locker number {self.get_index()} has been terminated for this reason: {reason}.\n"
                     f"If you still have items remaining inside the locker, "
-                    f"you will have to re-reserve and open the locker at the website here (link to site)\n" # TODO: add link
+                    f"you will have to re-reserve and open the locker at the website here {url_for("user_view.manage_reservation", _external=True)}\n"
                     f"If you are unable to retrieve your items, please contact StuCo immediatley."
                 )
                 notify([user_email], subject, body)
@@ -228,7 +229,7 @@ def handle_reservation(locker: Locker) -> None:
         subject = "Outstanding scooter locker reservation requires attention!"
         body = (
             f"You have held your current reservation for {elapsed_hours} hours, {elapsed_minutes} minutes, and {elapsed_seconds}.\n"
-            f"Consider retrieving your items and terminating your reservation here: (Link to site)\n"
+            f"Consider retrieving your items and terminating your reservation here: {url_for("user_view.manage_reservation", _external=True)}\n"
             f"This email will continue to be sent every {int(STATUS_RATE/60)} minutes until your reservation is terminated"
         )
         notify([user_email], subject, body)
@@ -314,6 +315,15 @@ def handle_init(json):
 @socketio.on("disconnect")
 def handle_disconnect():
     charging_station = resolve_sid(request.sid)
+
+    # Admin notif
+    subject = f"Station {charging_station.id}: Charging Station disconnected"
+    body = f""
+    db = get_db()
+    admin_list = db.execute(f"SELECT EMAIL FROM APPUSER WHERE ACCESS_TYPE = 'ADMIN'").fetchall()
+    for i in range(len(admin_list)-1):
+        admin_list[1] = admin_list[i][0]
+    notify(admin_list, subject, body)
     
     # Notify all users who have an active reservation 
     for locker in charging_station.locker_list:
@@ -322,8 +332,8 @@ def handle_disconnect():
         user_email = get_user_email(locker.reserver_id)
         subject = "IMPORTANT - Reserved locker has been disconnected from the server"
         body = (
-            f"Your activley reserved locker number {locker.get_index()} has been disabled due to being disconnected from the server.\n"
-            f"While your locker remains disabled, you will not be unable to unlock the locker door via the website. "
+            f"Your actively reserved locker number {locker.get_index()} has been disabled due to being disconnected from the server.\n"
+            f"While your locker remains disabled, you will not be able to unlock the locker door via the website. "
             f"Your reservation will remain active, and normal operation will resume once the station is reconnected to the server.\n\n"
             f"You will receive an email when the station is re-connected and access to your locker is re-instated.\n"
             f"If you have any questions, please contact StuCo."
@@ -363,7 +373,6 @@ def handle_json(json):
             debug(f"CSID: {charging_station.id} - Sent locker_list in status update with missing information")
             return
     
-    # TODO: Admin notifications
     # Update last time updated
     charging_station.last_stat_time = current_datetime
     db.execute(
@@ -373,33 +382,59 @@ def handle_json(json):
     )
     db.commit()
     debug(f"CSID: {charging_station.id} - Recieved status code: {status_code}, Message: '{msg}'")
+
+    # Admin notif
+    if status_code != 0: 
+        subject = f"Station {charging_station.id}: Charging Station error {status_code}"
+        body = (f"Charging station {charging_station.id} is running into issues and has sent status code {status_code}.\n"
+                f"Please check on charging station as lockers may have active reservation and contain user belongings.")
+        db = get_db()
+        admin_list = db.execute(f"SELECT EMAIL FROM APPUSER WHERE ACCESS_TYPE = ADMIN").fetchall()
+        for i in range(len(admin_list)-1):
+            admin_list[1] = admin_list[i][0]
+        notify(admin_list, subject, body)
         
     # Handle locker number
     if len(locker_list) != len(charging_station.locker_list):
         charging_station.init_lockers(len(locker_list))
-    
+
     # Handle locker info
     for i in range(len(locker_list)):
         locker = charging_station.locker_list[i]
+
+        # Update and compare last locker status
+        locker.last_status = locker.status
         locker.status = locker_list[i]
-        
+
         # Check for expired reservation
         handle_reservation(locker)
         
         # Check for non-good state
-        if locker.status["state"] != "good":
+        if locker.status["state"] != "good" and locker.status != locker.last_status:
             debug(f"CSID: {charging_station.id} - Locker {locker.get_index()} has been disabled, reservations terminated")
-            # NOTE: Should we do this?
+
+            # Admin notif
+            subject = f"IMPORTANT - Station {charging_station.id}: Locker disabled"
+            body = f"Locker  {locker.get_index()} located at charging station {charging_station.id} has been disabled due to unsafe operating conditions.\n"
+            if locker.is_reserved:
+                body += f"Locker has an active reservation and may contain user belongings."
+            db = get_db()
+            admin_list = db.execute(f"SELECT EMAIL FROM APPUSER WHERE ACCESS_TYPE = ADMIN").fetchall()
+            for i in range(len(admin_list)):
+                admin_list[1] = admin_list[i][0]
+            notify(admin_list, subject, body)
+
+            # User notif NOTE: Should we do this?
             if locker.is_reserved:
                 user_email = get_user_email(locker.reserver_id)
                 subject = "IMPORTANT - Reserved locker has been disabled due to unsafe operating conditions"
                 body = (
-                    f"Your activley reserved locker number {locker.get_index()} has been disabled due to unsafe operating conditions.\n"
-                    f"While your locker remains disabled, you will not be unable to unlock the locker door via the website. "
+                    f"Your actively reserved locker number {locker.get_index()} has been disabled due to unsafe operating conditions.\n"
+                    f"While your locker remains disabled, you will not be able to unlock the locker door via the website. "
                     f"Your reservation will remain active, and normal functionality will resume once operating conditions return to normal.\n\n"
-                    f"Please periodically check your reservation here: (link to site)\n" # TODO: add link
+                    f"Please periodically check your reservation here: {url_for("user_view.manage_reservation", _external=True)}\n"
                     f"If you have any questions, please contact StuCo."
                 )
                 notify([user_email], subject, body)
-    
+
     #print(charging_station)
