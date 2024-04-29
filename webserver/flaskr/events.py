@@ -58,12 +58,12 @@ class ChargingStation:
         for _ in range(num_lockers):
             new_locker = Locker(self)
             self.locker_list.append(new_locker)
-        print(f"SID: {request.sid}, CSID: {self.id} - Num of lockers set to {num_lockers}")
+        debug(f"CSID: {self.id} - Num of lockers set to {num_lockers}")
         
         # Get list of database reservations for this charging station
         db = get_db()
         reses = db.execute(f"SELECT rowid, RESERVED_CS_SPACE_I FROM APPUSER WHERE RESERVED_CS_ID = {self.id}").fetchall()
-        print(f"SID: {request.sid}, CSID: {self.id} - Found {len(reses)} database reservations for this station")
+        debug(f"CSID: {self.id} - Found {len(reses)} database reservations for this station")
         
         # Loop through list of current reservatons and apply them
         for res in reses:
@@ -77,7 +77,7 @@ class ChargingStation:
                     f"WHERE rowid = {user_id}"
                 )
                 db.commit()
-                print(f"SID: {request.sid}, CSID: {self.id} - User {user_id} requested to reserve invalid locker {locker_i}")
+                debug(f"CSID: {self.id} - User {user_id} requested to reserve invalid locker {locker_i}")
                 continue
             self.locker_list[locker_i].reserve(user_id)
 
@@ -145,7 +145,7 @@ class Locker:
         )
         notify([user_email], subject, body)
         
-        print(f"CSID: {self.parent_station.id} - User {user_id} reserved locker {self.get_index()}")
+        debug(f"CSID: {self.parent_station.id} - User {user_id} reserved locker {self.get_index()}")
     
     def unreserve(self, reason="User Requested") -> None:
         '''
@@ -173,7 +173,7 @@ class Locker:
                     f"If you are unable to retrieve your items, please contact StuCo immediatley."
                 )
                 notify([user_email], subject, body)
-        print(f"CSID: {self.parent_station.id} - User {self.reserver_id} unreserved locker {self.get_index()}")
+        debug(f"CSID: {self.parent_station.id} - User {self.reserver_id} unreserved locker {self.get_index()}")
         
         self.is_reserved = False
         self.reserver_id = None
@@ -186,13 +186,18 @@ class Locker:
         socketio.emit("unlock", {
             "index" : self.get_index()
         }, to=self.parent_station.client_sid)
-        print(f"SERVER - Sent unlock command to CSID: {self.parent_station.id}, LID: {self.get_index()}")
+        debug(f"SERVER - Sent unlock command to CSID: {self.parent_station.id}, LID: {self.get_index()}")
 
 connected_clients: "list[ChargingStation]" = []
 
 ################
 # UTIL FUNCTIONS
 ################
+
+def debug(msg: str):
+    message = f"[{datetime.now().strftime('%d/%b/%Y %H:%M:%S')}] "
+    message += msg
+    print(message)
 
 def resolve_sid(sid: str) -> ChargingStation:
     '''
@@ -244,7 +249,7 @@ def handle_new_connection(id: int = None) -> int:
         cursor.execute(f"INSERT INTO CHARGING_STATION(CS_LAST_UPDATE) VALUES ('{current_datetime}')")
         rowid = cursor.lastrowid
         db.commit()
-        print(f"SID: {request.sid} - No ID given, assigned CSID: {rowid}")
+        debug(f"SID: {request.sid} - No ID given, assigned CSID: {rowid}")
         return rowid
     
     # Case: An ID is given but no db entry exists - Action: Create new entry with this ID and return the ID
@@ -253,7 +258,7 @@ def handle_new_connection(id: int = None) -> int:
         cursor = db.cursor()
         cursor.execute(f"INSERT INTO CHARGING_STATION(CS_ID, CS_LAST_UPDATE) VALUES ({id}, '{current_datetime}')")
         db.commit()
-        print(f"SID: {request.sid} - ID of {id} given, new DB entry created, assigned CSID: {id}")
+        debug(f"SID: {request.sid} - ID of {id} given, new DB entry created, assigned CSID: {id}")
         return id
     
     # Case: An ID is given, there is a db entry, but there is a live connection using this entry - Action: Create new entry and return auto-generated ID
@@ -267,12 +272,12 @@ def handle_new_connection(id: int = None) -> int:
         cursor.execute(f"INSERT INTO CHARGING_STATION(CS_LAST_UPDATE) VALUES ('{current_datetime}')")
         rowid = cursor.lastrowid
         db.commit()
-        print(f"SID: {request.sid} - ID of {id} given but DB entry already in use, new DB entry created, assigned CSID: {rowid}")
+        debug(f"SID: {request.sid} - ID of {id} given but DB entry already in use, new DB entry created, assigned CSID: {rowid}")
         return rowid
     
     # Case: An ID is given, there is a db entry, and there is no live connection using this entry - Action: return id
     # PYLANCE IS WRONG WHEN IT SAYS THIS CODE IS UNREACHABLE - IT VERY MUCH IS!
-    print(f"SID: {request.sid} - ID of {id} given, assigned CSID: {id}")
+    debug(f"SID: {request.sid} - ID of {id} given, assigned CSID: {id}")
     return id
 
 ################
@@ -283,7 +288,7 @@ def handle_new_connection(id: int = None) -> int:
 def handle_connect():
     new_station = ChargingStation(request.sid)
     connected_clients.append(new_station)
-    print(f"SocketIO connection established with sid: {request.sid}")
+    debug(f"SocketIO connection established with SID: {request.sid}")
 
 @socketio.on("init")
 def handle_init(json):
@@ -291,18 +296,18 @@ def handle_init(json):
     
     # Check for auth
     if not ("auth" in json):
-        print(f"SID: {request.sid} - Sent no auth")
+        debug(f"SID: {request.sid} - Sent no auth")
         disconnect()
         return
     if json["auth"] != SECRET:
-        print(f"SID: {request.sid} - Sent incorrect auth")
+        debug(f"SID: {request.sid} - Sent incorrect auth")
         disconnect()
         return
     
     id = None if not ("id" in json.keys()) else json["id"]
     charging_station.id = handle_new_connection(id)
     
-    print(f"SID: {request.sid}, CSID: {charging_station.id} - Charging station initialized")
+    debug(f"CSID: {charging_station.id} - Charging station initialized")
     socketio.emit("init", {
         "id" : charging_station.id,
         "status_rate" : STATUS_RATE
@@ -329,7 +334,7 @@ def handle_disconnect():
         
     # remove from connected clients
     connected_clients.remove(charging_station)
-    print(f"SocketIO connection terminated with SID: {request.sid}")
+    debug(f"SocketIO connection terminated with SID: {request.sid}")
 
 @socketio.on("json")
 def handle_json(json):
@@ -337,13 +342,13 @@ def handle_json(json):
     db = get_db()
     charging_station = resolve_sid(request.sid)
     if charging_station.id is None:
-        print(f"SID: {request.sid} - Client has not initialized!")
+        debug(f"SID: {request.sid} - Client has not initialized!")
         disconnect()
         return
     
     # Check for incorrect json
     if not ("status_code" in json) or not ("locker_list" in json):
-        print(f"SID: {request.sid}, CSID: {charging_station.id} - Sent status update with missing information")
+        debug(f"CSID: {charging_station.id} - Sent status update with missing information")
         return
     status_code = int(json["status_code"])
     locker_list: "list[dict]" = json["locker_list"]
@@ -351,13 +356,13 @@ def handle_json(json):
     
     if (status_code != 0):
         if not ("error_msg" in json):
-            print(f"SID: {request.sid}, CSID: {charging_station.id} - Sent status update with error code and no error_msg")
+            debug(f"CSID: {charging_station.id} - Sent status update with error code and no error_msg")
             return
         msg = str(json["error_msg"])
     
     for locker in locker_list:
         if not ("state" in locker):
-            print(f"SID: {request.sid}, CSID: {charging_station.id} - Sent locker_list in status update with missing information")
+            debug(f"CSID: {charging_station.id} - Sent locker_list in status update with missing information")
             return
     
     # TODO: Admin notifications
@@ -368,7 +373,7 @@ def handle_json(json):
         f"WHERE CS_ID = {charging_station.id}"
     )
     db.commit()
-    print(f"SID: {request.sid}, CSID: {charging_station.id} - Recieved status code: {status_code}, Message: '{msg}'")
+    debug(f"CSID: {charging_station.id} - Recieved status code: {status_code}, Message: '{msg}'")
         
     # Handle locker number
     if len(locker_list) != len(charging_station.locker_list):
@@ -384,7 +389,7 @@ def handle_json(json):
         
         # Check for non-good state
         if locker.status["state"] != "good":
-            print(f"SID: {request.sid}, CSID: {charging_station.id} - Locker {locker.get_index()} has been disabled, reservations terminated")
+            debug(f"CSID: {charging_station.id} - Locker {locker.get_index()} has been disabled, reservations terminated")
             # NOTE: Should we do this?
             if locker.is_reserved:
                 user_email = get_user_email(locker.reserver_id)
