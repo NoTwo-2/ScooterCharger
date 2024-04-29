@@ -22,6 +22,14 @@ This directory contains everything needed to run the webserver for the scooter c
 
 # Additional Documentation
 
+## Outgoing Email Address
+
+Aurrently, all emails are sent from a temporary gmail account,which can be easily changed to another Gmail account.
+1. Using the new account, enable 2-Step verification.
+2. Go here (`https://myaccount.google.com/apppasswords`) to generate an app password that will only be used by the ScooterCharger webserver. Copy the password to input later.
+2. Navigate to the `/flaskr` folder in this directory and open `_init_.py`.
+3. Under `create_app()`, update `MAIL_USERNAME` with the new email address and `MAIL_PASSWORD` with the app password you copied. Save your changes.
+
 ## Socketio Documentation
 
 All Socketio functionality is located in `events.py`.
