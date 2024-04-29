@@ -48,7 +48,10 @@ def view_charging_stations():
                 continue
             # matching connected client
             station["total_lockers"] = len(cs.locker_list)
-            station["update_time"] = cs.last_stat_time.strftime("%a, %d at %I:%M:%S %p")
+            if not (cs.last_stat_time is None):
+                station["update_time"] = cs.last_stat_time.strftime("%a, %d at %I:%M:%S %p")
+            else:
+                station["update_time"] = None
             locker_avail = 0
             lockers = []
             for lckr in cs.locker_list:

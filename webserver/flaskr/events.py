@@ -11,7 +11,7 @@ from .notifs import notify
 # TODO: Use .env or something similar to handle this
 SECRET = "dev"
 
-STATUS_RATE = 300 # in seconds
+STATUS_RATE = 10 # in seconds
 '''Rate the server expects status updates in seconds'''
 TIME_BEFORE_NOTIF = 240 # in minutes
 '''Time before the server reminds the user to retrieve their items in minutes'''
@@ -320,8 +320,8 @@ def handle_disconnect():
     subject = f"Station {charging_station.id}: Charging Station disconnected"
     body = f""
     db = get_db()
-    admin_list = db.execute(f"SELECT EMAIL FROM APPUSER WHERE ACCESS_TYPE = ADMIN").fetchall()
-    for i in range(len(admin_list)):
+    admin_list = db.execute(f"SELECT EMAIL FROM APPUSER WHERE ACCESS_TYPE = 'ADMIN'").fetchall()
+    for i in range(len(admin_list)-1):
         admin_list[1] = admin_list[i][0]
     notify(admin_list, subject, body)
     
@@ -390,7 +390,7 @@ def handle_json(json):
                 f"Please check on charging station as lockers may have active reservation and contain user belongings.")
         db = get_db()
         admin_list = db.execute(f"SELECT EMAIL FROM APPUSER WHERE ACCESS_TYPE = ADMIN").fetchall()
-        for i in range(len(admin_list)):
+        for i in range(len(admin_list)-1):
             admin_list[1] = admin_list[i][0]
         notify(admin_list, subject, body)
         

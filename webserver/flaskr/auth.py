@@ -12,6 +12,8 @@ from .notifs import notify
 
 import secrets
 
+from smtplib import SMTPAuthenticationError
+
 bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 # Key to hold user_id
@@ -54,21 +56,21 @@ def register():
             passkey = generate_password_hash(password)
             
             try:
-                db.execute(
-                    f"INSERT INTO APPUSER (ACCESS_TYPE, EMAIL, PASSKEY, VERIFICATION_TOKEN) VALUES ('{access_type}', '{email}', '{passkey}', '{verification_token}')"
-                )
-                db.commit()
-            except db.IntegrityError:
-                flash("An account associated with this email already exists.", "warning")
+                print("sending email")
+                send_verification_email(email, verification_token)
+            except (ValueError, SMTPAuthenticationError):
+                print("except caught")
+                flash(f"Unable to send verification email to {email}, check the validity of your email and try again", "error")
                 return redirect(url_for("auth.register"))
             else:
+                print("except not caught")
                 try:
-                    send_verification_email(email, verification_token)
-                except ValueError:
-                    flash(f"Unable to send verification email to {email}, check the validity of your email and try again", "error")
-                    return redirect(url_for("auth.register"))
-                except:
-                    flash(f"check the validity of your email and try again", "error")
+                    db.execute(
+                        f"INSERT INTO APPUSER (ACCESS_TYPE, EMAIL, PASSKEY, VERIFICATION_TOKEN) VALUES ('{access_type}', '{email}', '{passkey}', '{verification_token}')"
+                    )
+                    db.commit()
+                except db.IntegrityError:
+                    flash("An account associated with this email already exists.", "warning")
                     return redirect(url_for("auth.register"))
                 else:
                     flash("An email with a verification link has been sent to your email address. Please verify your email.", "info")
