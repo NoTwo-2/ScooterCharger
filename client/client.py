@@ -31,7 +31,14 @@ def on_init(data):
     print(f"Server says: {data}")
     update_config(data['id'])
     # Write id to config.py no matter what.
-    sio.emit('json', {'status_code': 0, "locker_list": lockers})
+    new_l_list = []
+    for l in lockers:
+        new_l = {}
+        for key in l.keys():
+            if key != "pins":
+               new_l[key] = l[key]
+        new_l_list.append(new_l)
+    sio.emit('json', {'status_code': 0, "locker_list": new_l_list})
     global save_rate
     save_rate = int(data['status_rate'])
     global initialized
@@ -40,13 +47,22 @@ def on_init(data):
 @sio.on('unlock')
 def unlock(data):
     locker_index = data['index']
+    if locker[locker_index]["pins"]["lock"] is None:
+        return
     print(f"Unlocking locker {locker_index}")
     if not dummy_client:
-        GPIO.output(lockers[locker_index]["pins"]["outlet"], True)
-    sio.emit('json', {'status_code': 0, "locker_list": lockers})
+        GPIO.output(lockers[locker_index]["pins"]["lock"], True)
+    new_l_list = []
+    for l in lockers:
+        new_l = {}
+        for key in l.keys():
+            if key != "pins":
+                new_l[key] = l[key]
+        new_l_list.append(new_l)
+    sio.emit('json', {'status_code': 0, "locker_list": new_l_list})
     time.sleep(5)
     if not dummy_client:
-        GPIO.output(lockers[locker_index]["pins"]["outlet"], False)
+        GPIO.output(lockers[locker_index]["pins"]["lock"], False)
     
 @sio.event
 def disconnect():
@@ -79,7 +95,10 @@ def find_temp_sensors():
     return temp_sensors
 
 def read_temp(sensor_num):
-    data = open('/sys/bus/w1/devices/' + sensor_num + '/w1_slave').read()
+    try:
+        data = open('/sys/bus/w1/devices/' + str(sensor_num) + '/w1_slave').read()
+    except FileNotFoundError:
+        return 0
     temperature = float(data.split("=")[-1])
     return ((temperature / 1000) *1.8) + 32
 
@@ -94,14 +113,17 @@ def update_message():
         for locker in lockers:
             # Get the most recent sensor values
             if not dummy_client:
-                locker["temperature"] = read_temp(locker["pins"]["temp"])
-                locker["current"] = str(locker["pins"]["curr"].readline())[2:-5]
+                if not locker["pins"]["temp"] is None:
+                    locker["temperature"] = read_temp(locker["pins"]["temp"])
+                if not locker["pins"]["curr"] is None:
+                    locker["current"] = float(str(locker["pins"]["curr"].readline())[2:-5])
                 
             unsafe_temp = locker["temperature"] > max_temp
             unsafe_current = locker["current"] > max_curr
             if (not unsafe_temp) and (not unsafe_current):
                 if not dummy_client:
-                    GPIO.output(locker["pins"]["outlet"], True)
+                    if not locker["pins"]["outlet"] is None:
+                        GPIO.output(locker["pins"]["outlet"], True)
                 locker["state"] = "good"
                 continue
             
@@ -117,20 +139,27 @@ def update_message():
                 unsafe_currs += f"ID: {lockers.index(locker)} - {locker['current']}\n"
         
         # Emit the json event
+        new_l_list = []
+        for l in lockers:
+            new_l = {}
+            for key in l.keys():
+                if key != "pins":
+                    new_l[key] = l[key]
+            new_l_list.append(new_l)
         try:
             if unsafe_currs == "" and unsafe_temps == "":
-                sio.emit('json', {'status_code': 0, "locker_list": lockers})
+                sio.emit('json', {'status_code': 0, "locker_list": new_l_list})
             else:
                 final_message = (
                     f"One or more lockers were disabled due to unsafe conditions\n\n"
                     f"Lockers that exceeded a maximum safe temperature of {max_temp}:\n{unsafe_temps}\n"
                     f"Lockers that exceeded a maximum safe current of {max_curr}:\n{unsafe_currs}"
                 )
-                sio.emit('json', {'status_code': 1, "error_msg": final_message, "locker_list": lockers})
+                sio.emit('json', {'status_code': 1, "error_msg": final_message, "locker_list": new_l_list})
         except socketio.exceptions.BadNamespaceError:
             print(f"Attempted to emit JSON message, got BadNamespaceError")
         
-        print(f"Sent JSON {lockers}")
+        print(f"Sent JSON {new_l_list}")
 
 ###############
 # INIT
@@ -145,27 +174,30 @@ if __name__ == '__main__':
         "state": "good",
         "temperature": 0,
         "current": 0,
-        "sensors":{
-            "temp":0,
-            "curr":0,
-            "lock":0,
-            "outlet":0}
+        "pins":{
+            "temp":None,
+            "curr":None,
+            "lock":None,
+            "outlet":None}
     } for x in range(locker_num)]
     
     if not dummy_client:
         # Setup for sensors
         temp_sensors = find_temp_sensors()
-        
-        GPIO.setwarnings(False)
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(lock_pin,GPIO.OUT) # NOTE: these are depricated, i dont know where they come from now?
-        GPIO.setup(outlet_pin, GPIO.OUT)
+        #print(temp_sensors)
+        #print(read_temp(temp_sensors[0]))
         
         # Set pins for each locker
         lockers[0]["pins"]["temp"] = temp_sensors[0]
         lockers[0]["pins"]["curr"] = serial.Serial('/dev/ttyACM0',9600,8,'N',1,timeout=1)
         lockers[0]["pins"]["lock"] = 17
         lockers[0]["pins"]["outlet"] = 27
+        
+        GPIO.setwarnings(False)
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(lockers[0]["pins"]["lock"] ,GPIO.OUT) # NOTE: these are depricated, i dont know where they come from now?
+        GPIO.setup(lockers[0]["pins"]["outlet"], GPIO.OUT)
+        
     
     # Connect to server
     print(f"Attempting connection to {server_url}...")
