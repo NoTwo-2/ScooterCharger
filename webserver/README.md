@@ -1,35 +1,40 @@
 # Setup
 
-Learn how to initialize this directory with an environment (venv) [here](https://flask.palletsprojects.com/en/3.0.x/installation/).
-#### Activate venv in shell
-- Linux: `. .venv/bin/activate`
-- Windows: `.venv\Scripts\activate`
+1. Run `git clone (this repo)` in the desired directory.
+2. `cd` into the `webserver` directory.
+3. If using venv:
+    1. Run `python -m venv .venv` if on macOS or Linux, `py -m venv .venv` if on Windows. This will create the virtual environment folders for the webserver. These should be ignored via `.gitignore`.
+    2. Run `. .venv/bin/activate` if on macOS or Linux, `` if on Windows. This will change the context of the current shell to the new virtual environment you have created.
+    3. If using VSCode: 
+        1. Press `CTRL+SHIFT+P` to open the command palette.
+        2. Click `Python: Select Interpreter`
+        3. Find the python binary or executable in `.venv/Scripts` and select it. This will ensure pylance is able to interpret and highlight code from venv libraries that you install.
+4. Run `python -m pip install -r requirements.txt`. This will install all required dependencies.
+5. Run `flask --app flaskr init-db`. This will initialize the database schema and create a new SQLite database instance locally.
+6. Run `python run.py` to start the webserver.
 
-We are currently using: 
-- Flask: `pip install flask`
-- Flask-SocketIO: `pip install flask-socketio`
+# About
 
+This directory contains everything needed to run the webserver for the scooter charging stations. The webserver has three main purposes:
+1. To serve webpages to users that allow them to reserve and unlock lockers.
+2. To serve webpages to admin users that allow them to manage charging stations and active reservations.
+3. To facilitate Socketio connections between charging stations and the webserver to communicate status, unlock commands, etc.
 
-### If using VS Code and venv:
-`CTRL+SHIFT+P`, `Python: Select Interpreter`, select the python bin/exe in your `.venv` file.
+# Additional Documentation
 
-### To test the app
-If using venv, make sure your shell prompt displays `.venv` (see the above link). The path to the bin/exe for flask wont exist in environment variables otherwise.
+## Socketio Documentation
 
-If you are running this for the first time (or you want to reset the sqlite database), be sure to run `flask --app flaskr init-db` before running the app.
-In this directory, run the `run.py` python script.
+All Socketio functionality is located in `events.py`.
 
-# Socketio Documentation
+### Server Side Event Listeners
 
-## Server Side Event Listeners
-
-### "connect"
+#### "connect"
 Client emits this automatically upon connection with the webserver. This will create a new instance of the `ChargingStation` class and assign the `client_sid` variable to the session id of the connection. The new `ChargingStation` instance will then be appended to the `connected_clients` array.
 
-### "disconnect"
+#### "disconnect"
 Client emits this automatically upon connection termination, no matter the cause. This will remove the `ChargingStation` instance from the `connected_clients` array.
 
-### "init"
+#### "init"
 The client should send this immediatley after successful connection to the webserver and should contain the following JSON:
 ```json
 {
@@ -42,21 +47,21 @@ This will verify the authenticity of the client attempting a connection and init
 - **auth** (Required) -  This is a string the client must provide to the server when it emits the `"init"` event. The server will expect `"dev"` for development purposes.
 - **id** - This is the ID of the connected charging station and will correspond to the id of its entry in the database. This field should only be ommitted if this clent has not yet made a connection to the webserver. If this is not supplied, a new entry will be created in the database.
 
-### "json"
+#### "json"
 This will be how the client sends status updates and error messages to the server and should contain the following JSON:
 ```json
 {
     "status_code" : 1, // This is required
-    "error_msg" : "Failed to lock locker 2", // This is conditionally optional (see below)
+    "error_msg" : "Failed to unlock locker 2", // This is conditionally optional (see below)
     "locker_list" : [ // This is required
         {
-            "state" : "locked",
+            "state" : "good",
             "temperature" : 90,
             "current" : 0,
             // More entries can be added here
         },
         {
-            "state" : "unlocked",
+            "state" : "disabled",
             "temperature" : 90,
             "current" : 50,
             // More entries can be added here
@@ -73,13 +78,13 @@ This event will eventually handle logging and admin notifications, as well as ke
     - `2` means a fatal error has occured and the charging station is no longer operational
 - **error_msg** - This is a string containing a custom error message describing the error in more detail upon receiving a value greater than `0` in the `status_code`.
 - **locker_list** - This is an array of JSON objects containing various information from each locker. Required values are provided below. **IMPORTANT**: every time the client emits this event, it must send information for *all lockers and in the same order*. This list is how lockers are given their indexes. Otherwise, the information provided here will only be used for logging purposes.
-    - **state** - This stores whether the specific locker is available or not.
-        - `"unlocked"` means the locker is unlocked and available for reservation
-        - `"locked"` means the locker is locked
+    - **state** - This stores the specific locker's state.
+        - `"good"` means the locker is operating normally and available for reservation.
+        - Anything other than `"good"` describes an error state, and means the locker is unable to be reserved by users.
 
-## Client Side Event Listeners
+### Client Side Event Listeners
 
-### "init"
+#### "init"
 The server sends this after the client emits the `"init"` event and will contain the following JSON:
 ```json
 {
@@ -91,19 +96,8 @@ The server sends this after the client emits the `"init"` event and will contain
 - **id** - The numerical id that this charging station should use to identify itself. Upon future connections, this should be provided when the client emits the `"init"` event (see [Server Side Event Listeners](#server-side-event-listeners)).
 - **status_rate** - This is an integer representing how many seconds the client should wait in between sending status updates via the `"json"` event. The server will be expecting status updates at this rate, and will assume something is wrong if it doesn't receive them.
 
-### "lock"
-The server sends this when it wants a locker to be locked and will contain the following JSON:
-```json
-{
-    "index" : 0
-}
-```
-When the client receives this event, it should attempt to lock the locker, and if successful, it should emit the `"json"` event (see [Server Side Event Listeners](#server-side-event-listeners)).
-
-- **index** - The index of the locker the server wants the client to lock. The first locker should always have an index of `0`.
-
-### "unlock"
-Similar to the `"lock"` event, the server sends this when it wants a locker to be unlocked and will contain the following JSON:
+#### "unlock"
+The server sends this when it wants a locker to be unlocked and will contain the following JSON:
 ```json
 {
     "index" : 0

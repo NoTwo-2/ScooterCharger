@@ -18,8 +18,6 @@ TIME_BEFORE_NOTIF = 240 # in minutes
 
 socketio = SocketIO(cors_allowed_origins="*")
 
-# TODO: Logging for all print functions, maybe 
-
 ################
 # HELPER CLASSES
 ################
@@ -366,6 +364,7 @@ def handle_json(json):
             return
     
     # TODO: Admin notifications
+    # Update last time updated
     charging_station.last_stat_time = current_datetime
     db.execute(
         f"UPDATE CHARGING_STATION "
