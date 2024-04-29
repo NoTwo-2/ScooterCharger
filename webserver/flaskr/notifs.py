@@ -1,6 +1,6 @@
 from flask import Blueprint, g, request, redirect, url_for, session, render_template, current_app
 from flask_mail import Message
-from .extensions import mail
+from .extensions import mail, OUT_EMAIL, OUT_EMAIL_PASS
 import os
 
 bp = Blueprint('notifs', __name__, url_prefix='/notifs') 
@@ -9,7 +9,7 @@ bp = Blueprint('notifs', __name__, url_prefix='/notifs')
 @bp.route('/home', methods=['GET', 'POST'])
 def home():
     if request.method == 'POST':
-        sendTo = ['imbeahe@gmail.com', 'e4228557@gmail.com']
+        sendTo = [OUT_EMAIL]
         subject = "Test"
         body = "Testing"
         if notify(sendTo, subject, body) == "sent":
@@ -17,7 +17,7 @@ def home():
     return render_template('auth/email_demo.html')
 
 def notify(sendTo, subject, message):
-    msg = Message(subject, sender='ScooterCharger@mst.edu', recipients=sendTo)
+    msg = Message(subject, sender=OUT_EMAIL, recipients=sendTo)
     msg.body = message
     try:
         mail.send(msg)

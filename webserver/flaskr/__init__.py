@@ -3,7 +3,7 @@
 
 import os
 from flask import Flask, redirect, render_template, url_for
-from .extensions import mail
+from .extensions import mail, OUT_EMAIL, OUT_EMAIL_PASS
 
 def create_app() -> Flask:
     # Create instance of Flask object and set some config
@@ -15,10 +15,10 @@ def create_app() -> Flask:
         # mail stuff
         MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.gmail.com'),
         MAIL_PORT = os.getenv('MAIL_SERVER_PORT', 465),
-        MAIL_USERNAME = os.getenv('MAIL_USERNAME', 'e4228557@gmail.com'),
+        MAIL_USERNAME = os.getenv('MAIL_USERNAME', OUT_EMAIL),
         MAIL_USE_TLS = os.getenv('MAIL_USE_TLS', False),
         MAIL_USE_SSL = os.getenv('MAIL_USE_SSL', True),
-        MAIL_PASSWORD = os.getenv('MAIL_PASSWORD', 'tkaf fzmg exum ugul')
+        MAIL_PASSWORD = os.getenv('MAIL_PASSWORD', OUT_EMAIL_PASS)
     )
     
     # Create instance folder for application
