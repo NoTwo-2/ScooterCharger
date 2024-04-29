@@ -4,24 +4,20 @@ from flask import Blueprint, g, request, redirect, url_for, session, render_temp
 
 from flaskr.sqlite_db import get_db
 from .events import connected_clients, Locker, ChargingStation
-from flask_mail import Message, Mail
+from .notifs import notify
 import secrets
 
 bp = Blueprint('admin', __name__, url_prefix='/admin')
-mail = Mail()
-#generate a token for email
+# Generate a token for email
 def generate_verification_token():
     return secrets.token_urlsafe(16)
 
-#send verification email
+# Send verification email
 def send_verification_email(email, token):
-    msg = Message(
-        'Verify Your Email',
-        sender='e4228557@gmail.com',
-        recipients=[email]
-    )
-    msg.body = f'Click the link to verify your email: {url_for("auth.verify_email", token=token, _external=True)}'
-    mail.send(msg)
+    subject = 'Verify Your Email'
+    body = f'Click the link to verify your email: {url_for("auth.verify_email", token=token, _external=True)}'
+    notify([email], subject, body)
+
 @bp.route('/home', methods=['GET'])
 def home():
     '''

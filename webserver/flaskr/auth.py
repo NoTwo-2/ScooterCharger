@@ -8,7 +8,7 @@ from flaskr.sqlite_db import get_db
 
 from enum import Enum
 
-from flask_mail import Message, Mail
+from .notifs import notify
 
 import secrets
 
@@ -21,20 +21,16 @@ class AccessType(Enum):
     STUDENT = 0
     ADMIN = 1
     BOX = 2
-mail = Mail()
+
 #generate a token for email
 def generate_verification_token():
     return secrets.token_urlsafe(16)
 
 #send verification email
 def send_verification_email(email, token):
-    msg = Message(
-        'Verify Your Email',
-        sender='e4228557@gmail.com',
-        recipients=[email]
-    )
-    msg.body = f'Click the link to verify your email: {url_for("auth.verify_email", token=token, _external=True)}'
-    mail.send(msg)
+    subject = 'Verify Your Email'
+    body = f'Click the link to verify your email: {url_for("auth.verify_email", token=token, _external=True)}'
+    notify([email], subject, body)
 
 @bp.route('/register', methods=('GET', 'POST'))
 def register():
