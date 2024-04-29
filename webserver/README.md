@@ -29,6 +29,7 @@ Aurrently, all emails are sent from a temporary gmail account,which can be easil
 2. Go here (`https://myaccount.google.com/apppasswords`) to generate an app password that will only be used by the ScooterCharger webserver. Copy the password to input later.
 3. Navigate to the `/flaskr` folder in this directory and open `extensions`.
 4. Update `OUT_EMAIL` with the new email address and `OUT_EMAIL_PASS` with the app password you copied. Save your changes.
+
 To test:
 1. In a browser window, log into ScooterCharger, then replace the URL path with `/notifs/home`. 
 2. Click `Send email`. The new account should have received an email from itself with the subject line `Test`.
