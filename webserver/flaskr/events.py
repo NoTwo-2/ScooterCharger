@@ -315,6 +315,15 @@ def handle_init(json):
 @socketio.on("disconnect")
 def handle_disconnect():
     charging_station = resolve_sid(request.sid)
+
+    # Admin notif
+    subject = f"Station {charging_station.id}: Charging Station disconnected"
+    body = f""
+    db = get_db()
+    admin_list = db.execute(f"SELECT EMAIL FROM APPUSER WHERE ACCESS_TYPE = ADMIN").fetchall()
+    for i in range(len(admin_list)):
+        admin_list[1] = admin_list[i][0]
+    notify(admin_list, subject, body)
     
     # Notify all users who have an active reservation 
     for locker in charging_station.locker_list:
@@ -323,7 +332,7 @@ def handle_disconnect():
         user_email = get_user_email(locker.reserver_id)
         subject = "IMPORTANT - Reserved locker has been disconnected from the server"
         body = (
-            f"Your activley reserved locker number {locker.get_index()} has been disabled due to being disconnected from the server.\n"
+            f"Your actively reserved locker number {locker.get_index()} has been disabled due to being disconnected from the server.\n"
             f"While your locker remains disabled, you will not be able to unlock the locker door via the website. "
             f"Your reservation will remain active, and normal operation will resume once the station is reconnected to the server.\n\n"
             f"You will receive an email when the station is re-connected and access to your locker is re-instated.\n"
@@ -373,12 +382,21 @@ def handle_json(json):
     )
     db.commit()
     debug(f"CSID: {charging_station.id} - Recieved status code: {status_code}, Message: '{msg}'")
+
+    # Admin notif
+    if status_code != 0: 
+        subject = f"Station {charging_station.id}: Charging Station error {status_code}"
+        body = (f"Charging station {charging_station.id} is running into issues and has sent status code {status_code}.\n"
+                f"Please check on charging station as lockers may have active reservation and contain user belongings.")
+        db = get_db()
+        admin_list = db.execute(f"SELECT EMAIL FROM APPUSER WHERE ACCESS_TYPE = ADMIN").fetchall()
+        for i in range(len(admin_list)):
+            admin_list[1] = admin_list[i][0]
+        notify(admin_list, subject, body)
         
     # Handle locker number
     if len(locker_list) != len(charging_station.locker_list):
         charging_station.init_lockers(len(locker_list))
-    
-    status_changed = []
 
     # Handle locker info
     for i in range(len(locker_list)):
@@ -387,42 +405,36 @@ def handle_json(json):
         # Update and compare last locker status
         locker.last_status = locker.status
         locker.status = locker_list[i]
-        
-        if locker.status != locker.last_status:
-            status_changed.append(locker)
 
         # Check for expired reservation
         handle_reservation(locker)
         
         # Check for non-good state
-        if locker.status["state"] != "good":
+        if locker.status["state"] != "good" and locker.status != locker.last_status:
             debug(f"CSID: {charging_station.id} - Locker {locker.get_index()} has been disabled, reservations terminated")
-            # NOTE: Should we do this?
+
+            # Admin notif
+            subject = f"IMPORTANT - Station {charging_station.id}: Locker disabled"
+            body = f"Locker  {locker.get_index()} located at charging station {charging_station.id} has been disabled due to unsafe operating conditions.\n"
+            if locker.is_reserved:
+                body += f"Locker has an active reservation and may contain user belongings."
+            db = get_db()
+            admin_list = db.execute(f"SELECT EMAIL FROM APPUSER WHERE ACCESS_TYPE = ADMIN").fetchall()
+            for i in range(len(admin_list)):
+                admin_list[1] = admin_list[i][0]
+            notify(admin_list, subject, body)
+
+            # User notif NOTE: Should we do this?
             if locker.is_reserved:
                 user_email = get_user_email(locker.reserver_id)
                 subject = "IMPORTANT - Reserved locker has been disabled due to unsafe operating conditions"
                 body = (
-                    f"Your activley reserved locker number {locker.get_index()} has been disabled due to unsafe operating conditions.\n"
+                    f"Your actively reserved locker number {locker.get_index()} has been disabled due to unsafe operating conditions.\n"
                     f"While your locker remains disabled, you will not be able to unlock the locker door via the website. "
                     f"Your reservation will remain active, and normal functionality will resume once operating conditions return to normal.\n\n"
                     f"Please periodically check your reservation here: {url_for("user_view.manage_reservation", _external=True)}\n"
                     f"If you have any questions, please contact StuCo."
                 )
                 notify([user_email], subject, body)
-    
-    # TODO: Admin notifications for newly disabled lockers or other cs errors
-    if status_code != 0 and status_changed:
-        subject = f"Station {charging_station.id}: Lockers disabled"
-        body = msg + f"\nList of newly disabled lockers: \n{status_changed}"
-        db = get_db()
-        admin_list = db.execute(f"SELECT EMAIL FROM APPUSER WHERE ACCESS_TYPE = ADMIN").fetchall()
-        notify([admin_list], subject, body)
-    elif status_code != 0: 
-        subject = f"Station {charging_station.id}: Charging Station error"
-        body = msg
-        db = get_db()
-        admin_list = db.execute(f"SELECT EMAIL FROM APPUSER WHERE ACCESS_TYPE = ADMIN").fetchall()
-        notify([admin_list], subject, body)
-                
 
     #print(charging_station)
