@@ -208,7 +208,7 @@ def get_user_email(uid: int) -> str:
     Returns the email of the user with the given ID
     '''
     db = get_db()
-    return db.execute(f"SELECT EMAIL FROM APPUSER WHERE rowid = {uid}").fetchone()
+    return db.execute(f"SELECT EMAIL FROM APPUSER WHERE rowid = {uid}").fetchone()[0]
 
 def handle_reservation(locker: Locker) -> None:
     '''

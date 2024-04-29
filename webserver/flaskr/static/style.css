@@ -41,6 +41,7 @@ body {
 .form-container form input[type=submit] {
   font-size: 20px;
   background-color: #007A33;
+  color:white;
   border-color: #003B49;
   cursor: pointer;
   margin-bottom: 10px;
@@ -171,7 +172,7 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: flex-start; 
-  padding-top: 80px;
+  padding-top: 90px;
   min-height: 100vh; 
 }
 
