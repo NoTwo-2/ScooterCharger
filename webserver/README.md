@@ -24,10 +24,10 @@ This directory contains everything needed to run the webserver for the scooter c
 
 ## Outgoing Email Address
 
-Aurrently, all emails are sent from a temporary gmail account,which can be easily changed to another Gmail account.
-1. Using the new account, enable 2-Step verification.
+Currently, all emails are sent from a temporary gmail account,which can be easily changed to another Gmail account.
+1. Using the new account, enable 2-Step Verification.
 2. Go here (`https://myaccount.google.com/apppasswords`) to generate an app password that will only be used by the ScooterCharger webserver. Copy the password to input later.
-3. Navigate to the `/flaskr` folder in this directory and open `extensions`.
+3. Navigate to the `/flaskr` folder in this directory and open `extensions.py`.
 4. Update `OUT_EMAIL` with the new email address and `OUT_EMAIL_PASS` with the app password you copied. Save your changes.
 
 To test:
