@@ -32,7 +32,7 @@ Currently, all emails are sent from a temporary gmail account,which can be easil
 
 To test:
 1. In a browser window, log into ScooterCharger, then replace the URL path with `/notifs/home`. 
-2. Click `Send email`. The new account should have received an email from itself with the subject line `Test`.
+2. Click `Send email`. The page should read `Sent Email.` and the new account should have received an email from itself with the subject line `Test`.
 
 ## Socketio Documentation
 
