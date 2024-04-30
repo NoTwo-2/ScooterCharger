@@ -52,7 +52,7 @@ def edit_charging_station(cs_id):
             if gmaps_lon_lat.strip() == "":
                 cs_gmaps_link = request.form['cs_gmaps_link']
             else:
-                lat_lon_patt = "^[-+]?([1-8]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$" # Thanks stack overflow  
+                lat_lon_patt = r"^[-+]?([1-8]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$" # Thanks stack overflow  
                 if search(lat_lon_patt, gmaps_lon_lat) is None:
                     cs_gmaps_link = None
                 else:
