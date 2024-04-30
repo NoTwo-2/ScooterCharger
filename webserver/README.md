@@ -4,7 +4,7 @@
 2. `cd` into the `webserver` directory.
 3. If using venv:
     1. Run `python -m venv .venv` if on macOS or Linux, `py -m venv .venv` if on Windows. This will create the virtual environment folders for the webserver. These should be ignored via `.gitignore`.
-    2. Run `. .venv/bin/activate` if on macOS or Linux, `` if on Windows. This will change the context of the current shell to the new virtual environment you have created.
+    2. Run `. .venv/bin/activate` if on macOS or Linux, `.venv\Scripts\activate` if on Windows. This will change the context of the current shell to the new virtual environment you have created.
     3. If using VSCode: 
         1. Press `CTRL+SHIFT+P` to open the command palette.
         2. Click `Python: Select Interpreter`

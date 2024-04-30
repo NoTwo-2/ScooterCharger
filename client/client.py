@@ -31,7 +31,7 @@ def on_init(data):
     print(f"Server says: {data}")
     update_config(data['id'])
     # Write id to config.py no matter what.
-    new_l_list = json_lockers()
+    new_l_list = json_lockers(lockers)
     sio.emit('json', {'status_code': 0, "locker_list": new_l_list})
     global save_rate
     save_rate = int(data['status_rate'])
@@ -47,7 +47,7 @@ def unlock(data):
     print(f"Unlocking locker {locker_index}")
     if not dummy_client:
         GPIO.output(lockers[locker_index]["pins"]["lock"], True)
-    new_l_list = json_lockers()
+    new_l_list = json_lockers(lockers)
     sio.emit('json', {'status_code': 0, "locker_list": new_l_list})
     time.sleep(LOCK_SIGNAL_DURATION)
     if not dummy_client:
