@@ -31,13 +31,7 @@ def on_init(data):
     print(f"Server says: {data}")
     update_config(data['id'])
     # Write id to config.py no matter what.
-    new_l_list = []
-    for l in lockers:
-        new_l = {}
-        for key in l.keys():
-            if key != "pins":
-               new_l[key] = l[key]
-        new_l_list.append(new_l)
+    new_l_list = json_lockers()
     sio.emit('json', {'status_code': 0, "locker_list": new_l_list})
     global save_rate
     save_rate = int(data['status_rate'])
@@ -46,21 +40,16 @@ def on_init(data):
 
 @sio.on('unlock')
 def unlock(data):
+    LOCK_SIGNAL_DURATION = 0.1
     locker_index = data['index']
-    if locker[locker_index]["pins"]["lock"] is None:
+    if lockers[locker_index]["pins"]["lock"] is None:
         return
     print(f"Unlocking locker {locker_index}")
     if not dummy_client:
         GPIO.output(lockers[locker_index]["pins"]["lock"], True)
-    new_l_list = []
-    for l in lockers:
-        new_l = {}
-        for key in l.keys():
-            if key != "pins":
-                new_l[key] = l[key]
-        new_l_list.append(new_l)
+    new_l_list = json_lockers()
     sio.emit('json', {'status_code': 0, "locker_list": new_l_list})
-    time.sleep(5)
+    time.sleep(LOCK_SIGNAL_DURATION)
     if not dummy_client:
         GPIO.output(lockers[locker_index]["pins"]["lock"], False)
     
@@ -102,6 +91,16 @@ def read_temp(sensor_num):
     temperature = float(data.split("=")[-1])
     return ((temperature / 1000) *1.8) + 32
 
+def json_lockers(lockers: list[dict]):
+    l_list = []
+    for l in lockers:
+        new_l = {}
+        for key in l.keys():
+            if key != "pins":
+                new_l[key] = l[key]
+        l_list.append(new_l)
+    return l_list
+
 def update_message():
     while True:
         # Loop periodically based on save_rate
@@ -139,13 +138,7 @@ def update_message():
                 unsafe_currs += f"ID: {lockers.index(locker)} - {locker['current']}\n"
         
         # Emit the json event
-        new_l_list = []
-        for l in lockers:
-            new_l = {}
-            for key in l.keys():
-                if key != "pins":
-                    new_l[key] = l[key]
-            new_l_list.append(new_l)
+        new_l_list = json_lockers(lockers)
         try:
             if unsafe_currs == "" and unsafe_temps == "":
                 sio.emit('json', {'status_code': 0, "locker_list": new_l_list})

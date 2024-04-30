@@ -286,20 +286,18 @@ body {
 
 .login-page-container {
   align-items: center;
-  background-image: url("images/authentication_page_background.png");
-  background-position: center center;
+  background-image: url("images/S\ and\ T\ logo.PNG"), url("images/Header.png"), url("images/Footer.png");
+  background-position: left 19.95% top -2px, top center, bottom center; 
   background-repeat: no-repeat;
-  background-size: cover;
+  background-size: 12vh, 100% 50vh, auto; 
   display: flex;
   flex-direction: column;
-  height: 100%;
-  justify-content: center;
-  width: 100%;
-  padding-top: 80px; 
+  justify-content: flex-start; 
+  padding-top: 90px;
+  min-height: 100vh; 
 }
 
 .login-page-container .form-container {
-  background-image: url("images/login_page_background.png");
   background-position: center;
   background-repeat: no-repeat;
   background-size: auto 120%;
@@ -318,7 +316,7 @@ body {
   display: flex;
   flex-direction: column;
   position: relative;
-  margin: 140px 80px 50px 60px;
+  margin: 50px 50px 10px 50px;
 }
 
 .login-page-container .form-container form.form2{
