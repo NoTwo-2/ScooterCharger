@@ -42,9 +42,9 @@ def on_init(data):
 def unlock(data):
     LOCK_SIGNAL_DURATION = 0.1
     locker_index = data['index']
+    print(f"Unlocking locker {locker_index}")
     if lockers[locker_index]["pins"]["lock"] is None:
         return
-    print(f"Unlocking locker {locker_index}")
     if not dummy_client:
         GPIO.output(lockers[locker_index]["pins"]["lock"], True)
     new_l_list = json_lockers(lockers)

@@ -46,8 +46,8 @@ def edit_charging_station(cs_id):
                 flash("Incomplete URL.","error")
                 return redirect(url_for("user_view.view_charging_stations"))
             
-            cs_name = request.form['cs_name']
-            cs_address = request.form['cs_address']
+            cs_name = request.form['cs_name'].replace("'", "")
+            cs_address = request.form['cs_address'].replace("'", "")
             gmaps_lon_lat = request.form['gmaps_lon_lat']
             if gmaps_lon_lat.strip() == "":
                 cs_gmaps_link = request.form['cs_gmaps_link']

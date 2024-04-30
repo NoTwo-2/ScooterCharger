@@ -11,7 +11,7 @@ from .notifs import notify
 # TODO: Use .env or something similar to handle this
 SECRET = "dev"
 
-STATUS_RATE = 10 # in seconds
+STATUS_RATE = 300 # in seconds
 '''Rate the server expects status updates in seconds'''
 TIME_BEFORE_NOTIF = 240 # in minutes
 '''Time before the server reminds the user to retrieve their items in minutes'''
@@ -214,6 +214,17 @@ def get_user_email(uid: int) -> str:
     db = get_db()
     return db.execute(f"SELECT EMAIL FROM APPUSER WHERE rowid = {uid}").fetchone()[0]
 
+def get_admin_emails() -> list[str]:
+    '''
+    Returns a list of the admin users' emails
+    '''
+    db = get_db()
+    admins = db.execute(f"SELECT EMAIL FROM APPUSER WHERE ACCESS_TYPE = 'ADMIN'").fetchall()
+    admin_list = []
+    for i in range(len(admins)):
+        admin_list.append(admins[i][0])
+    return admin_list
+
 def handle_reservation(locker: Locker) -> None:
     '''
     Determines whether the current reservation on a locker is still valid.
@@ -310,7 +321,7 @@ def handle_init(json):
     socketio.emit("init", {
         "id" : charging_station.id,
         "status_rate" : STATUS_RATE
-    })
+    }, to=request.sid)
     
 @socketio.on("disconnect")
 def handle_disconnect():
@@ -319,10 +330,7 @@ def handle_disconnect():
     # Admin notif
     subject = f"Station {charging_station.id}: Charging Station disconnected"
     body = f""
-    db = get_db()
-    admin_list = db.execute(f"SELECT EMAIL FROM APPUSER WHERE ACCESS_TYPE = 'ADMIN'").fetchall()
-    for i in range(len(admin_list)-1):
-        admin_list[1] = admin_list[i][0]
+    admin_list = get_admin_emails()
     notify(admin_list, subject, body)
     
     # Notify all users who have an active reservation 
@@ -386,12 +394,11 @@ def handle_json(json):
     # Admin notif
     if status_code != 0: 
         subject = f"Station {charging_station.id}: Charging Station error {status_code}"
-        body = (f"Charging station {charging_station.id} is running into issues and has sent status code {status_code}.\n"
+        body = (f"Charging station {charging_station.id} is running into issues "
+                f"and has sent status code {status_code} along with the following message:\n\n"
+                f"{msg}\n\n"
                 f"Please check on charging station as lockers may have active reservation and contain user belongings.")
-        db = get_db()
-        admin_list = db.execute(f"SELECT EMAIL FROM APPUSER WHERE ACCESS_TYPE = ADMIN").fetchall()
-        for i in range(len(admin_list)-1):
-            admin_list[1] = admin_list[i][0]
+        admin_list = get_admin_emails()
         notify(admin_list, subject, body)
         
     # Handle locker number
@@ -410,19 +417,8 @@ def handle_json(json):
         handle_reservation(locker)
         
         # Check for non-good state
-        if locker.status["state"] != "good" and locker.status != locker.last_status:
+        if locker.status["state"] != "good" and locker.status["state"] != locker.last_status["state"]:
             debug(f"CSID: {charging_station.id} - Locker {locker.get_index()} has been disabled, reservations terminated")
-
-            # Admin notif
-            subject = f"IMPORTANT - Station {charging_station.id}: Locker disabled"
-            body = f"Locker  {locker.get_index()} located at charging station {charging_station.id} has been disabled due to unsafe operating conditions.\n"
-            if locker.is_reserved:
-                body += f"Locker has an active reservation and may contain user belongings."
-            db = get_db()
-            admin_list = db.execute(f"SELECT EMAIL FROM APPUSER WHERE ACCESS_TYPE = ADMIN").fetchall()
-            for i in range(len(admin_list)):
-                admin_list[1] = admin_list[i][0]
-            notify(admin_list, subject, body)
 
             # User notif NOTE: Should we do this?
             if locker.is_reserved:
@@ -433,6 +429,19 @@ def handle_json(json):
                     f"While your locker remains disabled, you will not be able to unlock the locker door via the website. "
                     f"Your reservation will remain active, and normal functionality will resume once operating conditions return to normal.\n\n"
                     f"Please periodically check your reservation here: {url_for("user_view.manage_reservation", _external=True)}\n"
+                    f"If you have any questions, please contact StuCo."
+                )
+                notify([user_email], subject, body)
+        elif locker.status["state"] == "good" and locker.status["state"] != locker.last_status["state"]:
+            debug(f"CSID: {charging_station.id} - Locker {locker.get_index()} has been re-enabled, reservations reinstated")
+            
+            # User notif NOTE: Should we do this?
+            if locker.is_reserved:
+                user_email = get_user_email(locker.reserver_id)
+                subject = "IMPORTANT - Reserved locker has been re-enabled"
+                body = (
+                    f"Your actively reserved locker number {locker.get_index()} has been re-activated.\n"
+                    f"You may now open your locker at the website: {url_for("user_view.manage_reservation", _external=True)}\n"
                     f"If you have any questions, please contact StuCo."
                 )
                 notify([user_email], subject, body)
