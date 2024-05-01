@@ -36,7 +36,8 @@ def on_init(data):
     sio.emit('json', {'status_code': 0, "locker_list": new_l_list})
     # Activate all lockers
     for locker in lockers:
-        GPIO.output(locker["pins"]["outlet"], True)
+        if not locker["pins"]["outlet"] is None:
+            GPIO.output(locker["pins"]["outlet"], True)
     # Set all global variables
     global save_rate
     save_rate = int(data['status_rate'])
