@@ -138,7 +138,7 @@ class Locker:
         subject = "Locker reservation confirmation"
         body = (
             f"Your reservation for locker number {self.get_index()} is now active! " 
-            f"You may now open your locker and manage your reservation here: {url_for("user_view.manage_reservation", _external=True)}\n\n"
+            f"You may now open your locker and manage your reservation here: {url_for('user_view.manage_reservation', _external=True)}\n\n"
             f"Please be sure to retrieve your items and terminate your reservation when finished. "
             f"You will be sent a reminder email in {TIME_BEFORE_NOTIF} minutes."
         )
@@ -168,7 +168,7 @@ class Locker:
                 body = (
                     f"Your active reservation for locker number {self.get_index()} has been terminated for this reason: {reason}.\n"
                     f"If you still have items remaining inside the locker, "
-                    f"you will have to re-reserve and open the locker at the website here {url_for("user_view.manage_reservation", _external=True)}\n"
+                    f"you will have to re-reserve and open the locker at the website here {url_for('user_view.manage_reservation', _external=True)}\n"
                     f"If you are unable to retrieve your items, please contact StuCo immediatley."
                 )
                 notify([user_email], subject, body)
@@ -240,7 +240,7 @@ def handle_reservation(locker: Locker) -> None:
         subject = "Outstanding scooter locker reservation requires attention!"
         body = (
             f"You have held your current reservation for {elapsed_hours} hours, {elapsed_minutes} minutes, and {elapsed_seconds}.\n"
-            f"Consider retrieving your items and terminating your reservation here: {url_for("user_view.manage_reservation", _external=True)}\n"
+            f"Consider retrieving your items and terminating your reservation here: {url_for('user_view.manage_reservation', _external=True)}\n"
             f"This email will continue to be sent every {int(STATUS_RATE/60)} minutes until your reservation is terminated"
         )
         notify([user_email], subject, body)
@@ -428,7 +428,7 @@ def handle_json(json):
                     f"Your actively reserved locker number {locker.get_index()} has been disabled due to unsafe operating conditions.\n"
                     f"While your locker remains disabled, you will not be able to unlock the locker door via the website. "
                     f"Your reservation will remain active, and normal functionality will resume once operating conditions return to normal.\n\n"
-                    f"Please periodically check your reservation here: {url_for("user_view.manage_reservation", _external=True)}\n"
+                    f"Please periodically check your reservation here: {url_for('user_view.manage_reservation', _external=True)}\n"
                     f"If you have any questions, please contact StuCo."
                 )
                 notify([user_email], subject, body)
@@ -441,7 +441,7 @@ def handle_json(json):
                 subject = "IMPORTANT - Reserved locker has been re-enabled"
                 body = (
                     f"Your actively reserved locker number {locker.get_index()} has been re-activated.\n"
-                    f"You may now open your locker at the website: {url_for("user_view.manage_reservation", _external=True)}\n"
+                    f"You may now open your locker at the website: {url_for('user_view.manage_reservation', _external=True)}\n"
                     f"If you have any questions, please contact StuCo."
                 )
                 notify([user_email], subject, body)
