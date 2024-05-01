@@ -19,6 +19,7 @@ sio = socketio.Client()
 
 @sio.event
 def connect():
+    
     if id is None:
         sio.emit('init', {'auth': "dev"})
     else:
@@ -63,7 +64,7 @@ def disconnect():
 ###############
 
 def update_config(x):
-    with open('config.py', 'r') as file:
+    with open(f'{dir_path}/config.py', 'r') as file:
         lines = file.readlines()
 
     new_lines = []
@@ -73,7 +74,7 @@ def update_config(x):
         else:
             new_lines.append(line)
 
-    with open('config.py', 'w') as file:
+    with open(f'{dir_path}/config.py', 'w') as file:
         file.writelines(new_lines)
         
 def find_temp_sensors():
@@ -161,6 +162,7 @@ def update_message():
 if __name__ == '__main__':
     initialized = False
     save_rate = 10
+    dir_path = os.path.dirname(os.path.realpath(__file__))
 
     # TODO: Initialize this list according to how many IO devices are present (is there an automatic way to figure this out via code?)
     lockers = [{
