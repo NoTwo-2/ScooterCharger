@@ -188,8 +188,12 @@ if __name__ == '__main__':
         #print(read_temp(temp_sensors[0]))
         
         # Set pins for each locker
-        lockers[0]["pins"]["temp"] = temp_sensors[0]
-        lockers[0]["pins"]["curr"] = serial.Serial('/dev/ttyACM0',9600,8,'N',1,timeout=1)
+        try:
+            lockers[0]["pins"]["temp"] = temp_sensors[0]
+            lockers[0]["pins"]["curr"] = serial.Serial('/dev/ttyACM0',9600,8,'N',1,timeout=1)
+        except Exception as e:
+            sio.emit('json', {'status_code': 2, "error_msg": e.message, "locker_list": new_l_list})
+            raise e
         lockers[0]["pins"]["lock"] = 17
         lockers[0]["pins"]["outlet"] = 27
         
