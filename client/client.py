@@ -33,6 +33,10 @@ def on_init(data):
     # Write id to config.py no matter what.
     new_l_list = json_lockers(lockers)
     sio.emit('json', {'status_code': 0, "locker_list": new_l_list})
+    # Activate all lockers
+    for locker in lockers:
+        GPIO.output(locker["pins"]["outlet"], True)
+    # Set all global variables
     global save_rate
     save_rate = int(data['status_rate'])
     global initialized
