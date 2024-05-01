@@ -10,7 +10,12 @@ dtoverlay=w1-gpio
    sudo modprobe w1-thermo
 
 # Setting up the Pi so it can take in input from the arduino:
-Needs to be finished (dont know the exact buttons off of the top of my head)
-
+1. Open Preferences and click Raspberry Pi Configuration
+2. Go to interfaces
+   Check Serial Port
+   Make sure that Serial console is not checked
+3. Reboot
+# Setting up the Pi so it runs the script on startup
+Add a line of code that will excecute client.py to /etc/rc.local
 
 # Something about a boot script idk

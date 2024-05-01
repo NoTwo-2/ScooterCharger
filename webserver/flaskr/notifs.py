@@ -2,6 +2,7 @@ from flask import Blueprint, g, request, redirect, url_for, session, render_temp
 from flask_mail import Message
 from .extensions import mail, OUT_EMAIL, OUT_EMAIL_PASS
 import os
+from contextlib import redirect_stdout
 
 bp = Blueprint('notifs', __name__, url_prefix='/notifs') 
 
