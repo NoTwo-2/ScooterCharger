@@ -11,7 +11,7 @@ from .notifs import notify
 # TODO: Use .env or something similar to handle this
 SECRET = "dev"
 
-STATUS_RATE = 300 # in seconds
+STATUS_RATE = 5 # in seconds
 '''Rate the server expects status updates in seconds'''
 TIME_BEFORE_NOTIF = 240 # in minutes
 '''Time before the server reminds the user to retrieve their items in minutes'''
@@ -389,7 +389,7 @@ def handle_json(json):
         f"WHERE CS_ID = {charging_station.id}"
     )
     db.commit()
-    debug(f"CSID: {charging_station.id} - Recieved status code: {status_code}, Message: '{msg}'")
+    debug(f"CSID: {charging_station.id} - Recieved status code: {status_code}, Message: '{msg}', Lockers: {locker_list}")
 
     # Admin notif
     if status_code != 0: 
